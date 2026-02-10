@@ -2,11 +2,29 @@
 
 import { commerce } from "@/lib/commerce";
 import type { Cart } from "@/lib/api/types";
-import { getCartCookieJson, setCartCookie } from "@/lib/cookies";
+import { getCartCookieJson, setCartCookie, getOrCreateSessionId, getSessionId } from "@/lib/cookies";
 
 export async function getCart(): Promise<Cart | null> {
 	const cartCookie = await getCartCookieJson();
+	const sessionId = await getSessionId();
 
+	// Try by sessionId first (our backend uses sessionId)
+	if (sessionId) {
+		try {
+			const cart = await commerce.cartGetBySession({ sessionId });
+			if (cart && cart.id) {
+				// Make sure cookie is in sync
+				if (!cartCookie || cartCookie.id !== cart.id) {
+					await setCartCookie({ id: cart.id });
+				}
+				return cart;
+			}
+		} catch {
+			// Fall through to cookie-based lookup
+		}
+	}
+
+	// Fallback to cookie cartId
 	if (!cartCookie?.id) {
 		return null;
 	}
@@ -19,10 +37,11 @@ export async function getCart(): Promise<Cart | null> {
 }
 
 export async function addToCart(variantId: string, quantity = 1) {
-	const cartCookie = await getCartCookieJson();
+	// Get or create a persistent session ID
+	const sessionId = await getOrCreateSessionId();
 
 	const cart = await commerce.cartUpsert({
-		cartId: cartCookie?.id,
+		sessionId,
 		variantId,
 		quantity,
 	});
@@ -31,6 +50,7 @@ export async function addToCart(variantId: string, quantity = 1) {
 		return { success: false, cart: null };
 	}
 
+	// Save cart ID in cookie for future lookups
 	await setCartCookie({ id: cart.id });
 
 	// Fetch full cart data to sync with client
@@ -47,11 +67,9 @@ export async function removeFromCart(variantId: string) {
 	}
 
 	try {
-		// Set quantity to 0 to remove the item
-		await commerce.cartUpsert({
+		await commerce.cartRemoveItem({
 			cartId: cartCookie.id,
 			variantId,
-			quantity: 0,
 		});
 
 		// Fetch updated cart
@@ -63,8 +81,6 @@ export async function removeFromCart(variantId: string) {
 }
 
 // Set absolute quantity for a cart item
-// NOTE: Our backend cart API uses delta-based quantity updates
-// This function calculates the delta internally
 export async function setCartQuantity(variantId: string, quantity: number) {
 	const cartCookie = await getCartCookieJson();
 
@@ -73,21 +89,16 @@ export async function setCartQuantity(variantId: string, quantity: number) {
 	}
 
 	try {
-		// Get current cart to calculate delta
-		const currentCart = await commerce.cartGet({ cartId: cartCookie.id });
-		// Find item by variantId (our API uses variantId, not productVariant.id)
-		const currentItem = currentCart?.items.find((item) => item.variantId === variantId);
-		const currentQuantity = currentItem?.quantity ?? 0;
-
 		if (quantity <= 0) {
-			// Remove item by setting quantity to 0
-			await commerce.cartUpsert({ cartId: cartCookie.id, variantId, quantity: 0 });
+			// Remove item
+			await commerce.cartRemoveItem({ cartId: cartCookie.id, variantId });
 		} else {
-			// Calculate delta for cartUpsert
-			const delta = quantity - currentQuantity;
-			if (delta !== 0) {
-				await commerce.cartUpsert({ cartId: cartCookie.id, variantId, quantity: delta });
-			}
+			// Update quantity - use update endpoint
+			await commerce.cartUpdateItem({
+				cartId: cartCookie.id,
+				variantId,
+				quantity,
+			});
 		}
 
 		// Fetch updated cart

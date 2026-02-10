@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { removeFromCart, setCartQuantity } from "@/app/cart/actions";
 import { type CartLineItem, useCart } from "@/app/cart/cart-context";
-import { AppLink } from "@/components/app-link";
 import { CURRENCY, LOCALE } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 
@@ -19,10 +18,10 @@ export function CartItem({ item }: CartItemProps) {
 	const { dispatch, closeCart } = useCart();
 	const [, startTransition] = useTransition();
 
-	// Use our API structure (CartItem from types.ts)
-	const { variantId, productName, productSlug, productImage, variantName, price, quantity } = item;
+	// Using correct backend field names
+	const { variantId, productId, productName, imageUrl, variantDescription, unitPrice, quantity } = item;
 
-	const lineTotal = BigInt(price) * BigInt(quantity);
+	const lineTotal = BigInt(Math.round(unitPrice * 100)) * BigInt(quantity) / BigInt(100);
 
 	const handleRemove = () => {
 		startTransition(async () => {
@@ -55,29 +54,19 @@ export function CartItem({ item }: CartItemProps) {
 	return (
 		<div className="flex gap-3 py-4">
 			{/* Product Image */}
-			<AppLink
-				prefetch={"eager"}
-				href={`/product/${productSlug}`}
-				onClick={closeCart}
-				className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary"
-			>
-				{productImage && <Image src={productImage} alt={productName} fill className="object-cover" sizes="96px" />}
-			</AppLink>
+			<div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary">
+				{imageUrl && <Image src={imageUrl} alt={productName} fill className="object-cover" sizes="96px" />}
+			</div>
 
 			{/* Product Details */}
 			<div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
 				<div className="flex items-start justify-between gap-2">
 					<div>
-						<AppLink
-							prefetch={"eager"}
-							href={`/product/${productSlug}`}
-							onClick={closeCart}
-							className="text-sm font-medium leading-tight text-foreground hover:underline line-clamp-2"
-						>
+						<p className="text-sm font-medium leading-tight text-foreground line-clamp-2">
 							{productName}
-						</AppLink>
-						{variantName && (
-							<p className="text-xs text-muted-foreground mt-0.5">{variantName}</p>
+						</p>
+						{variantDescription && (
+							<p className="text-xs text-muted-foreground mt-0.5">{variantDescription}</p>
 						)}
 					</div>
 					<button

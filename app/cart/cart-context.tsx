@@ -12,7 +12,8 @@ type CartAction =
 	| { type: "INCREASE"; variantId: string }
 	| { type: "DECREASE"; variantId: string }
 	| { type: "REMOVE"; variantId: string }
-	| { type: "ADD_ITEM"; item: CartItem };
+	| { type: "ADD_ITEM"; item: CartItem }
+	| { type: "CLEAR" };
 
 type CartContextValue = {
 	cart: Cart | null;
@@ -23,6 +24,7 @@ type CartContextValue = {
 	cartId: string | null;
 	openCart: () => void;
 	closeCart: () => void;
+	clearCart: () => void;
 	dispatch: (action: CartAction) => void;
 };
 
@@ -44,8 +46,10 @@ export function CartProvider({ children, initialCart, initialCartId }: CartProvi
 				return {
 					id: "optimistic",
 					items: [action.item],
-					subtotal: action.item.subtotal,
-					total: action.item.subtotal,
+					subtotal: action.item.totalPrice,
+					total: action.item.totalPrice,
+					voucherDiscount: 0,
+					totalItems: action.item.quantity,
 				} satisfies Cart;
 			}
 			return state;
@@ -57,7 +61,7 @@ export function CartProvider({ children, initialCart, initialCartId }: CartProvi
 					...state,
 					items: state.items.map((item) =>
 						item.variantId === action.variantId 
-							? { ...item, quantity: item.quantity + 1, subtotal: item.price * (item.quantity + 1) } 
+							? { ...item, quantity: item.quantity + 1, totalPrice: item.unitPrice * (item.quantity + 1) } 
 							: item,
 					),
 				};
@@ -71,7 +75,7 @@ export function CartProvider({ children, initialCart, initialCartId }: CartProvi
 								if (item.quantity - 1 <= 0) {
 									return null;
 								}
-								return { ...item, quantity: item.quantity - 1, subtotal: item.price * (item.quantity - 1) };
+								return { ...item, quantity: item.quantity - 1, totalPrice: item.unitPrice * (item.quantity - 1) };
 							}
 							return item;
 						})
@@ -97,7 +101,7 @@ export function CartProvider({ children, initialCart, initialCartId }: CartProvi
 								? { 
 									...item, 
 									quantity: item.quantity + action.item.quantity,
-									subtotal: item.price * (item.quantity + action.item.quantity)
+									totalPrice: item.unitPrice * (item.quantity + action.item.quantity)
 								}
 								: item,
 						),
@@ -110,6 +114,15 @@ export function CartProvider({ children, initialCart, initialCartId }: CartProvi
 				};
 			}
 
+			case "CLEAR":
+				return {
+					...state,
+					items: [],
+					subtotal: 0,
+					total: 0,
+					totalItems: 0,
+				};
+
 			default:
 				return state;
 		}
@@ -121,12 +134,13 @@ export function CartProvider({ children, initialCart, initialCartId }: CartProvi
 
 	const subtotal = useMemo(
 		() =>
-			items.reduce((sum, item) => sum + BigInt(item.price) * BigInt(item.quantity), BigInt(0)),
+			items.reduce((sum, item) => sum + BigInt(Math.round(item.unitPrice * 100)) * BigInt(item.quantity) / BigInt(100), BigInt(0)),
 		[items],
 	);
 
 	const openCart = useCallback(() => setIsOpen(true), []);
 	const closeCart = useCallback(() => setIsOpen(false), []);
+	const clearCart = useCallback(() => dispatchCartAction({ type: "CLEAR" }), [dispatchCartAction]);
 
 	// Derive cartId from optimistic cart or initial
 	const currentCartId =
@@ -142,6 +156,7 @@ export function CartProvider({ children, initialCart, initialCartId }: CartProvi
 			cartId: currentCartId,
 			openCart,
 			closeCart,
+			clearCart,
 			dispatch: dispatchCartAction,
 		}),
 		[
@@ -153,6 +168,7 @@ export function CartProvider({ children, initialCart, initialCartId }: CartProvi
 			currentCartId,
 			openCart,
 			closeCart,
+			clearCart,
 			dispatchCartAction,
 		],
 	);

@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AppLink } from "@/components/app-link";
 import { CURRENCY, LOCALE } from "@/lib/constants";
+import { cartT } from "@/lib/i18n/translations";
 import { formatMoney } from "@/lib/money";
 
 export function CartSidebar() {
@@ -20,9 +21,9 @@ export function CartSidebar() {
 			<SheetContent className="flex flex-col w-full sm:max-w-lg">
 				<SheetHeader className="border-b border-border pb-4">
 					<SheetTitle className="flex items-center gap-2">
-						Your Cart
+						{cartT.yourCart}
 						{itemCount > 0 && (
-							<span className="text-sm font-normal text-muted-foreground">({itemCount} items)</span>
+							<span className="text-sm font-normal text-muted-foreground">({itemCount} {cartT.items})</span>
 						)}
 					</SheetTitle>
 				</SheetHeader>
@@ -33,11 +34,11 @@ export function CartSidebar() {
 							<ShoppingBag className="h-10 w-10 text-muted-foreground" />
 						</div>
 						<div className="text-center">
-							<p className="text-lg font-medium">Your cart is empty</p>
-							<p className="text-sm text-muted-foreground mt-1">Add some products to get started</p>
+							<p className="text-lg font-medium">{cartT.empty}</p>
+							<p className="text-sm text-muted-foreground mt-1">{cartT.emptyDescription}</p>
 						</div>
 						<Button variant="outline" onClick={closeCart}>
-							Continue Shopping
+							{cartT.continueShopping}
 						</Button>
 					</div>
 				) : (
@@ -53,15 +54,15 @@ export function CartSidebar() {
 						<SheetFooter className="border-t border-border pt-4 mt-auto">
 							<div className="w-full space-y-4">
 								<div className="flex items-center justify-between text-base">
-									<span className="font-medium">Subtotal</span>
+									<span className="font-medium">{cartT.subtotal}</span>
 									<span className="font-semibold">
 										{formatMoney({ amount: subtotal, currency: CURRENCY, locale: LOCALE })}
 									</span>
 								</div>
-								<p className="text-xs text-muted-foreground">Shipping and taxes calculated at checkout</p>
+								<p className="text-xs text-muted-foreground">{cartT.shippingNote}</p>
 								<Button asChild className="w-full h-12 text-base font-medium">
 									<AppLink prefetch={false} href={checkoutUrl} onClick={closeCart}>
-										Checkout
+										{cartT.checkout}
 									</AppLink>
 								</Button>
 								<button
@@ -69,7 +70,7 @@ export function CartSidebar() {
 									onClick={closeCart}
 									className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
 								>
-									Continue Shopping
+									{cartT.continueShopping}
 								</button>
 							</div>
 						</SheetFooter>

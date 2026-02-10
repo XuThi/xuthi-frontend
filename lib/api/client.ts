@@ -4,13 +4,17 @@
  */
 
 import type {
-	Cart,
-	CartItem,
-	Category,
-	CategoryWithProducts,
-	Order,
 	Product,
 	ProductSearchResult,
+	Category,
+	CategoryWithProducts,
+	Cart,
+	Order,
+	Brand,
+    VariantOption,
+	Customer,
+	CustomerDetail,
+	Voucher,
 } from "./types";
 
 // Get the API base URL from environment
@@ -29,19 +33,38 @@ const API_BASE_URL = getApiBaseUrl();
 /**
  * Generic fetch wrapper with error handling
  */
+/**
+ * Generic fetch wrapper with error handling
+ */
 async function apiFetch<T>(
 	endpoint: string,
 	options: RequestInit = {},
 ): Promise<T> {
 	const url = `${API_BASE_URL}${endpoint}`;
 
+    // Try to retrieve access token from localStorage (client-side only)
+    let token: string | undefined;
+    
+    if (typeof window !== 'undefined') {
+        // Client-side: get token from localStorage
+        token = localStorage.getItem('xuthi_auth_token') || undefined;
+    }
+    // Note: Server-side API calls don't include auth token automatically
+    // For authenticated server-side requests, the token should be passed via options.headers
+
+    const headers: HeadersInit = {
+        "Content-Type": "application/json",
+        ...options.headers,
+    };
+
+    if (token) {
+        (headers as any)["Authorization"] = `Bearer ${token}`;
+    }
+
 	try {
 		const response = await fetch(url, {
 			...options,
-			headers: {
-				"Content-Type": "application/json",
-				...options.headers,
-			},
+			headers,
 			// Add timeout to prevent hanging
 			signal: AbortSignal.timeout(10000),
 		});
@@ -59,6 +82,11 @@ async function apiFetch<T>(
 		return JSON.parse(text) as T;
 	} catch (error) {
 		// Log but don't crash - return empty data for SSR resilience
+        // Silence 404s for cart endpoints as they are expected for new sessions
+        if (options.method === 'GET' && endpoint.includes('/api/cart') && (error as any)?.message?.includes('404')) {
+            throw error;
+        }
+
 		console.error(`API fetch failed for ${endpoint}:`, error);
 		throw error;
 	}
@@ -151,11 +179,11 @@ async function categoryBrowse(params: { limit?: number; parentId?: string } = {}
 	const endpoint = `/api/categories${queryString ? `?${queryString}` : ""}`;
 
 	try {
-		const result = await apiFetch<{ categories: BackendCategory[] }>(endpoint);
+		const result = await apiFetch<{ categories: Category[] }>(endpoint);
 		let categories = (result.categories || []).map((c) => ({
 			id: c.id,
 			name: c.name,
-			slug: c.urlSlug, // Map urlSlug to slug
+			slug: (c as any).urlSlug || c.slug, // Map urlSlug to slug
 			description: c.description,
 			parentCategoryId: c.parentCategoryId,
 			sortOrder: c.sortOrder,
@@ -199,74 +227,217 @@ async function categoryGet(params: { idOrSlug: string }): Promise<CategoryWithPr
 	}
 }
 
-// ============ Cart API ============
 
-let currentSessionId: string | null = null;
+// ============ Brands API ============
 
-function getSessionId(): string {
-	if (typeof window !== "undefined") {
-		currentSessionId = localStorage.getItem("xuthi_session_id");
-		if (!currentSessionId) {
-			currentSessionId = crypto.randomUUID();
-			localStorage.setItem("xuthi_session_id", currentSessionId);
-		}
-	} else if (!currentSessionId) {
-		currentSessionId = crypto.randomUUID();
-	}
-	return currentSessionId;
+// ============ Brands API ============
+
+export interface CreateBrandParams {
+	name: string;
+	urlSlug: string;
+	description?: string;
+	logoUrl?: string; // Optional
 }
+
+export interface UpdateBrandParams extends Partial<CreateBrandParams> {}
+
+
+
+async function brandBrowse(): Promise<{ data: Brand[] }> {
+	try {
+		const result = await apiFetch<{ brands: Brand[] }>("/api/brands");
+		return { data: result.brands || [] };
+	} catch {
+		return { data: [] };
+	}
+}
+
+async function brandGet(id: string): Promise<Brand | null> {
+    try {
+        // Fallback: Get all brands and find by ID (since we lack GET /api/brands/{id})
+        // TODO: Implement GET /api/brands/{id} on backend for efficiency
+        const { data } = await brandBrowse();
+        return data.find(b => b.id === id) || null;
+    } catch {
+        return null;
+    }
+}
+
+// ============ Variant Options API ============
+
+export interface CreateVariantOptionParams {
+    id: string;
+    name: string;
+    displayType: string;
+    values: string[];
+}
+
+export interface UpdateVariantOptionParams {
+    name?: string;
+    displayType?: string;
+    values?: string[];
+}
+
+async function variantOptionBrowse(): Promise<{ data: VariantOption[] }> {
+    try {
+        const result = await apiFetch<VariantOption[]>("/api/variant-options");
+        return { data: result || [] }; // Endpoint returns list direct
+    } catch {
+        return { data: [] };
+    }
+}
+
+async function variantOptionCreate(params: CreateVariantOptionParams): Promise<VariantOption | null> {
+    try {
+        const result = await apiFetch<VariantOption>("/api/variant-options", {
+            method: "POST",
+            body: JSON.stringify(params)
+        });
+        return result;
+    } catch {
+        return null;
+    }
+}
+
+async function variantOptionUpdate(id: string, params: UpdateVariantOptionParams): Promise<VariantOption | null> {
+    try {
+        const result = await apiFetch<VariantOption>(`/api/variant-options/${id}`, {
+             method: "PUT",
+             body: JSON.stringify(params)
+        });
+        return result;
+    } catch {
+        return null;
+    }
+}
+
+async function variantOptionDelete(id: string): Promise<boolean> {
+    try {
+        await apiFetch(`/api/variant-options/${id}`, {
+            method: "DELETE"
+        });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function brandCreate(params: CreateBrandParams): Promise<Brand | null> {
+    try {
+        const result = await apiFetch<Brand>("/api/brands", {
+            method: "POST",
+            body: JSON.stringify(params)
+        });
+        return result;
+    } catch {
+        return null;
+    }
+}
+
+async function brandUpdate(id: string, params: UpdateBrandParams): Promise<Brand | null> {
+    try {
+        const result = await apiFetch<Brand>(`/api/brands/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(params)
+        });
+        return result;
+    } catch {
+        return null;
+    }
+}
+
+async function brandDelete(id: string): Promise<boolean> {
+    try {
+        await apiFetch(`/api/brands/${id}`, {
+            method: "DELETE"
+        });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// ============ Cart API ============
 
 async function cartGet(params: { cartId: string }): Promise<Cart | null> {
 	try {
-		// Our backend uses sessionId, not cartId for anonymous users
-		const endpoint = `/api/cart?sessionId=${params.cartId}`;
-		const result = await apiFetch<Cart>(endpoint);
-		return result;
+		const endpoint = `/api/cart?cartId=${params.cartId}`;
+		const result = await apiFetch<{ cart: Cart | null }>(endpoint);
+		return result.cart;
+	} catch {
+		return null;
+	}
+}
+
+async function cartGetBySession(params: { sessionId: string }): Promise<Cart | null> {
+	try {
+		const endpoint = `/api/cart?sessionId=${params.sessionId}`;
+		const result = await apiFetch<{ cart: Cart | null }>(endpoint);
+		return result.cart;
 	} catch {
 		return null;
 	}
 }
 
 async function cartUpsert(params: {
-	cartId?: string;
+	sessionId: string;
 	variantId: string;
 	quantity: number;
 }): Promise<Cart | null> {
 	try {
-		const sessionId = params.cartId || getSessionId();
-
-		if (params.quantity === 0) {
-			// Remove item
-			// Note: Our backend might need the cart ID, not just session ID
-			// This is a simplification - you may need to adjust based on your actual cart structure
-			const cart = await cartGet({ cartId: sessionId });
-			if (cart?.id) {
-				await apiFetch(`/api/cart/${cart.id}/items/${params.variantId}`, {
-					method: "DELETE",
-				});
-				return await cartGet({ cartId: sessionId });
-			}
-			return null;
-		}
-
-		// Add or update item
-		const result = await apiFetch<Cart>("/api/cart/items", {
+		// Add item to cart - backend creates cart if doesn't exist
+		// Response is { cartId: Guid, cart: CartDto }
+		const result = await apiFetch<{ cart: Cart }>("/api/cart/items", {
 			method: "POST",
 			body: JSON.stringify({
-				sessionId,
-				productId: params.variantId, // May need adjustment based on your product/variant structure
+				sessionId: params.sessionId,
+				productId: params.variantId,
 				variantId: params.variantId,
 				quantity: params.quantity,
 			}),
 		});
 
-		return result;
+		return result.cart;
+	} catch {
+		return null;
+	}
+}
+
+async function cartRemoveItem(params: {
+	cartId: string;
+	variantId: string;
+}): Promise<void> {
+	await apiFetch(`/api/cart/${params.cartId}/items/${params.variantId}`, {
+		method: "DELETE",
+	});
+}
+
+async function cartUpdateItem(params: {
+	cartId: string;
+	variantId: string;
+	quantity: number;
+}): Promise<Cart | null> {
+	try {
+		const result = await apiFetch<{ cart: Cart | null }>(`/api/cart/${params.cartId}/items/${params.variantId}`, {
+			method: "PUT",
+			body: JSON.stringify({ quantity: params.quantity }),
+		});
+		return result.cart;
 	} catch {
 		return null;
 	}
 }
 
 // ============ Orders API ============
+
+async function orderBrowse(): Promise<{ data: Order[] }> {
+	try {
+		const result = await apiFetch<{ orders: Order[] }>("/api/orders");
+		return { data: result.orders || [] };
+	} catch {
+		return { data: [] };
+	}
+}
 
 async function orderGet(params: { id: string }): Promise<Order | null> {
 	try {
@@ -280,6 +451,55 @@ async function orderGet(params: { id: string }): Promise<Order | null> {
 			: `/api/orders/by-number/${params.id}`;
 
 		return await apiFetch<Order>(endpoint);
+	} catch {
+		return null;
+	}
+}
+
+// ============ Customers API ============
+
+async function customerBrowse(params: {
+	page?: number;
+	limit?: number;
+	search?: string;
+}): Promise<{ data: Customer[]; total: number }> {
+	try {
+		const query = new URLSearchParams();
+		if (params.page) query.append("Page", params.page.toString());
+		if (params.limit) query.append("PageSize", params.limit.toString());
+		if (params.search) query.append("Search", params.search);
+
+		const result = await apiFetch<{ customers: Customer[]; totalCount: number }>(
+			`/api/customers?${query.toString()}`,
+		);
+		return { data: result.customers || [], total: result.totalCount };
+	} catch {
+		return { data: [], total: 0 };
+	}
+}
+
+async function customerGet(params: { id: string }): Promise<CustomerDetail | null> {
+	try {
+		return await apiFetch<CustomerDetail>(`/api/customers/${params.id}`);
+	} catch {
+		return null;
+	}
+}
+
+// ============ Vouchers API ============
+
+async function voucherBrowse(): Promise<{ data: Voucher[] }> {
+	try {
+		const result = await apiFetch<{ vouchers: Voucher[] }>("/api/vouchers");
+		return { data: result.vouchers || [] };
+	} catch {
+		return { data: [] };
+	}
+}
+
+async function voucherGet(id: string): Promise<Voucher | null> {
+	try {
+		return await apiFetch<Voucher>(`/api/vouchers/${id}`);
 	} catch {
 		return null;
 	}
@@ -316,12 +536,37 @@ export const api = {
 	categoryBrowse,
 	categoryGet,
 
+	// Brands
+	brandBrowse,
+    brandGet,
+    brandCreate,
+    brandUpdate,
+    brandDelete,
+
+    // Variant Options
+    variantOptionBrowse,
+    variantOptionCreate,
+    variantOptionUpdate,
+    variantOptionDelete,
+
 	// Cart
 	cartGet,
+	cartGetBySession,
 	cartUpsert,
+	cartRemoveItem,
+	cartUpdateItem,
 
 	// Orders
+	orderBrowse,
 	orderGet,
+
+	// Customers
+	customerBrowse,
+	customerGet,
+
+	// Vouchers
+	voucherBrowse,
+	voucherGet,
 
 	// Store info (stub)
 	meGet,

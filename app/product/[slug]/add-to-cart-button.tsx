@@ -1,30 +1,14 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { addToCart } from "@/app/cart/actions";
 import { useCart } from "@/app/cart/cart-context";
 import { QuantitySelector } from "@/app/product/[slug]/quantity-selector";
 import { TrustBadges } from "@/app/product/[slug]/trust-badges";
-import { VariantSelector } from "@/app/product/[slug]/variant-selector";
-import type { ProductVariant } from "@/lib/api/types";
+import { VariantSelector, type Variant } from "@/app/product/[slug]/variant-selector";
 import { CURRENCY, LOCALE } from "@/lib/constants";
+import { cartT } from "@/lib/i18n/translations";
 import { formatMoney } from "@/lib/money";
-
-type Variant = ProductVariant & {
-	combinations?: {
-		variantValue: {
-			id: string;
-			value: string;
-			colorValue: string | null;
-			variantType: {
-				id: string;
-				type: "string" | "color";
-				label: string;
-			};
-		};
-	}[];
-};
 
 type AddToCartButtonProps = {
 	variants: Variant[];
@@ -37,54 +21,30 @@ type AddToCartButtonProps = {
 };
 
 export function AddToCartButton({ variants, product }: AddToCartButtonProps) {
-	const searchParams = useSearchParams();
 	const [quantity, setQuantity] = useState(1);
 	const [isPending, startTransition] = useTransition();
 	const { openCart, dispatch } = useCart();
 
-	const selectedVariant = useMemo(() => {
-		if (variants.length === 1) {
-			return variants[0];
-		}
-
-		if (searchParams.size === 0) {
-			return undefined;
-		}
-
-		// Try old YNS format with combinations first
-		const paramsOptions: Record<string, string> = {};
-		searchParams.forEach((valueName, key) => {
-			paramsOptions[key] = valueName;
-		});
-
-		const variantByCombo = variants.find((variant) =>
-			variant.combinations?.every(
-				(combination) =>
-					paramsOptions[combination.variantValue.variantType.label] === combination.variantValue.value,
-			),
-		);
-
-		if (variantByCombo) return variantByCombo;
-
-		// Try our format with attributes
-		return variants.find((variant) => {
-			if (!variant.attributes) return false;
-			return Object.entries(paramsOptions).every(
-				([key, value]) => variant.attributes[key] === value
-			);
-		});
-	}, [variants, searchParams]);
+	// Manage selected variant with client-side state (not URL params)
+	const [selectedVariant, setSelectedVariant] = useState<Variant | undefined>(() => {
+		// Auto-select first variant
+		return variants.length >= 1 ? variants[0] : undefined;
+	});
 
 	const totalPrice = selectedVariant ? BigInt(selectedVariant.price) * BigInt(quantity) : null;
 
 	const buttonText = useMemo(() => {
-		if (isPending) return "Adding...";
-		if (!selectedVariant) return "Select options";
+		if (isPending) return cartT.adding;
+		if (!selectedVariant) return cartT.selectOptions;
 		if (totalPrice) {
-			return `Add to Cart — ${formatMoney({ amount: totalPrice, currency: CURRENCY, locale: LOCALE })}`;
+			return `${cartT.addToCart} — ${formatMoney({ amount: totalPrice, currency: CURRENCY, locale: LOCALE })}`;
 		}
-		return "Add to Cart";
+		return cartT.addToCart;
 	}, [isPending, selectedVariant, totalPrice]);
+
+	const handleVariantChange = (variant: Variant | undefined) => {
+		setSelectedVariant(variant);
+	};
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -97,21 +57,23 @@ export function AddToCartButton({ variants, product }: AddToCartButtonProps) {
 		// Execute server action with optimistic update
 		startTransition(async () => {
 			// Dispatch inside transition for optimistic update
-			// Use our CartItem format
+			// Using field names that match backend CartItemDto
 			dispatch({
 				type: "ADD_ITEM",
 				item: {
 					id: `${product.id}-${selectedVariant.id}`,
 					productId: product.id,
 					productName: product.name,
-					productSlug: product.slug,
-					productImage: product.images[0] || selectedVariant.images[0],
 					variantId: selectedVariant.id,
-					variantName: selectedVariant.name,
 					variantSku: selectedVariant.sku,
-					price: selectedVariant.price,
+					variantDescription: selectedVariant.name,
+					imageUrl: product.images[0] || selectedVariant.images[0],
+					unitPrice: selectedVariant.price,
 					quantity,
-					subtotal: selectedVariant.price * quantity,
+					totalPrice: selectedVariant.price * quantity,
+					availableStock: 10,
+					isInStock: true,
+					isOnSale: false,
 				},
 			});
 
@@ -123,7 +85,13 @@ export function AddToCartButton({ variants, product }: AddToCartButtonProps) {
 
 	return (
 		<div className="space-y-8">
-			{variants.length > 1 && <VariantSelector variants={variants} selectedVariantId={selectedVariant?.id} />}
+			{variants.length > 1 && (
+				<VariantSelector 
+					variants={variants} 
+					selectedVariant={selectedVariant}
+					onVariantChange={handleVariantChange}
+				/>
+			)}
 
 			<QuantitySelector quantity={quantity} onQuantityChange={setQuantity} disabled={isPending} />
 

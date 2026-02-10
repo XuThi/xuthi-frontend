@@ -1,13 +1,11 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import type { ProductVariant } from "@/lib/api/types";
 
-// Support both old YNS format and new API format
-type Variant = {
-	id: string;
-	// Old YNS format
+// Extended variant type that includes YNS combination format
+type Variant = ProductVariant & {
 	combinations?: {
 		variantValue: {
 			id: string;
@@ -20,8 +18,6 @@ type Variant = {
 			};
 		};
 	}[];
-	// New API format
-	attributes?: Record<string, string>;
 };
 
 type VariantOption = {
@@ -38,7 +34,8 @@ type VariantGroup = {
 
 type VariantSelectorProps = {
 	variants: Variant[];
-	selectedVariantId: string | undefined;
+	selectedVariant: Variant | undefined;
+	onVariantChange: (variant: Variant | undefined) => void;
 };
 
 function processVariants(variants: Variant[]): VariantGroup[] {
@@ -117,73 +114,63 @@ function processVariants(variants: Variant[]): VariantGroup[] {
 	return [];
 }
 
-export function VariantSelector({ variants, selectedVariantId }: VariantSelectorProps) {
-	const router = useRouter();
-	const searchParams = useSearchParams();
-	const pathname = usePathname();
+export type { Variant };
+
+export function VariantSelector({ variants, selectedVariant, onVariantChange }: VariantSelectorProps) {
 	const variantGroups = processVariants(variants);
 
 	// Check which format we're using
 	const hasAttributes = variants.some((v) => v.attributes && Object.keys(v.attributes).length > 0);
 
-	// Build Maps for O(1) lookups
-	const { optionsByValue, optionsById } = useMemo(() => {
-		const optionsByValue = new Map(
-			variantGroups.map((g) => [g.label, new Map(g.options.map((o) => [o.value, o]))]),
-		);
-		const optionsById = new Map(
-			variantGroups.map((g) => [g.label, new Map(g.options.map((o) => [o.id, o]))]),
-		);
-		return { optionsByValue, optionsById };
-	}, [variantGroups]);
-
-	const selectedOptions = useMemo(() => {
-		const paramsOptions: Record<string, string> = {};
-		searchParams.forEach((valueName, key) => {
-			const option = optionsByValue.get(key)?.get(valueName);
-			if (option) {
-				paramsOptions[key] = option.id;
+	// Track selected options (label -> value)
+	const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
+		// Initialize from first variant or selected variant
+		const variant = selectedVariant || variants[0];
+		if (!variant) return {};
+		
+		if (hasAttributes && variant.attributes) {
+			return { ...variant.attributes };
+		}
+		
+		if (variant.combinations) {
+			const options: Record<string, string> = {};
+			for (const c of variant.combinations) {
+				options[c.variantValue.variantType.label] = c.variantValue.value;
 			}
-		});
-		return paramsOptions;
-	}, [searchParams, optionsByValue]);
+			return options;
+		}
+		
+		return {};
+	});
 
-	const handleOptionSelect = (label: string, optionId: string) => {
-		const newSelectedOptions = { ...selectedOptions, [label]: optionId };
-
-		const params = Object.entries(newSelectedOptions).reduce((acc, [key, value]) => {
-			const option = optionsById.get(key)?.get(value);
-			if (option) {
-				acc.set(key, option.value);
+	// Find matching variant based on selected options
+	const findMatchingVariant = useMemo(() => {
+		return (options: Record<string, string>): Variant | undefined => {
+			if (hasAttributes) {
+				return variants.find((v) => {
+					if (!v.attributes) return false;
+					return Object.entries(options).every(
+						([key, value]) => v.attributes?.[key] === value
+					);
+				});
+			} else {
+				return variants.find((v) =>
+					v.combinations?.every(
+						(c) => options[c.variantValue.variantType.label] === c.variantValue.value
+					)
+				);
 			}
-			return acc;
-		}, new URLSearchParams());
-		router.push(`${pathname}?${params.toString()}`, { scroll: false });
+		};
+	}, [variants, hasAttributes]);
+
+	const handleOptionSelect = (label: string, value: string) => {
+		const newOptions = { ...selectedOptions, [label]: value };
+		setSelectedOptions(newOptions);
+		
+		// Find and notify parent of matching variant
+		const matchingVariant = findMatchingVariant(newOptions);
+		onVariantChange(matchingVariant);
 	};
-
-	// Auto-redirect to first variant when no URL params exist (for multi-variant products)
-	useEffect(() => {
-		if (variants.length <= 1 || searchParams.size > 0) return;
-
-		const firstVariant = variants[0];
-		const params = new URLSearchParams();
-
-		if (hasAttributes && firstVariant.attributes) {
-			// New API format
-			for (const [key, value] of Object.entries(firstVariant.attributes)) {
-				params.set(key, value);
-			}
-		} else if (firstVariant.combinations) {
-			// Old YNS format
-			firstVariant.combinations.forEach((c) => {
-				params.set(c.variantValue.variantType.label, c.variantValue.value);
-			});
-		}
-
-		if (params.toString()) {
-			router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-		}
-	}, [variants, searchParams.size, pathname, hasAttributes]);
 
 	if (variantGroups.length === 0) {
 		return null;
@@ -192,10 +179,7 @@ export function VariantSelector({ variants, selectedVariantId }: VariantSelector
 	return (
 		<div className="space-y-8">
 			{variantGroups.map((group) => {
-				const selectedOptionId = selectedOptions[group.label];
-				const selectedOption = selectedOptionId
-					? optionsById.get(group.label)?.get(selectedOptionId)
-					: undefined;
+				const selectedValue = selectedOptions[group.label];
 
 				return (
 					<div key={group.label}>
@@ -203,13 +187,13 @@ export function VariantSelector({ variants, selectedVariantId }: VariantSelector
 							<>
 								<div className="mb-3 flex items-center justify-between">
 									<span className="text-sm font-medium">{group.label}</span>
-									{selectedOption && (
-										<span className="text-sm text-muted-foreground">{selectedOption.value}</span>
+									{selectedValue && (
+										<span className="text-sm text-muted-foreground">{selectedValue}</span>
 									)}
 								</div>
 								<div className="flex gap-3">
 									{group.options.map((option) => {
-										const isSelected = selectedOptions[group.label] === option.id;
+										const isSelected = selectedValue === option.value;
 										const isLightColor =
 											option.colorValue?.toUpperCase() === "#FFFFFF" ||
 											option.colorValue?.toUpperCase() === "#FFFFF0" ||
@@ -219,7 +203,7 @@ export function VariantSelector({ variants, selectedVariantId }: VariantSelector
 											<button
 												key={option.id}
 												type="button"
-												onClick={() => handleOptionSelect(group.label, option.id)}
+												onClick={() => handleOptionSelect(group.label, option.value)}
 												className={cn(
 													"relative h-12 w-12 rounded-full transition-all duration-200",
 													isSelected
@@ -245,13 +229,13 @@ export function VariantSelector({ variants, selectedVariantId }: VariantSelector
 								</div>
 								<div className="flex flex-wrap gap-3">
 									{group.options.map((option) => {
-										const isSelected = selectedOptions[group.label] === option.id;
+										const isSelected = selectedValue === option.value;
 
 										return (
 											<button
 												key={option.id}
 												type="button"
-												onClick={() => handleOptionSelect(group.label, option.id)}
+												onClick={() => handleOptionSelect(group.label, option.value)}
 												className={cn(
 													"flex flex-col items-center rounded-lg border-2 px-6 py-3 transition-all duration-200",
 													isSelected

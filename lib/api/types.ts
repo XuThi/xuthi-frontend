@@ -1,6 +1,6 @@
 /**
  * XuThi Backend API Types
- * These types match the DTOs from the .NET backend
+ * These types match the DTOs from the .NET backend exactly
  */
 
 // ============ Product Types ============
@@ -56,73 +56,147 @@ export interface CategoryWithProducts extends Category {
 	products: Product[];
 }
 
-// ============ Cart Types ============
+// ============ Cart Types (matches backend CartDto exactly) ============
+
+/**
+ * Cart item from backend - matches CartItemDto
+ */
 export interface CartItem {
 	id: string;
 	productId: string;
-	productName: string;
-	productSlug: string;
-	productImage?: string;
 	variantId: string;
-	variantName: string;
+	productName: string;
 	variantSku: string;
-	price: number;
+	variantDescription?: string;
+	imageUrl?: string;
+	unitPrice: number;
+	compareAtPrice?: number;
 	quantity: number;
-	subtotal: number;
+	totalPrice: number;
+	availableStock: number;
+	isInStock: boolean;
+	isOnSale: boolean;
 }
 
+/**
+ * Cart from backend - matches CartDto
+ */
 export interface Cart {
 	id: string;
 	sessionId?: string;
 	customerId?: string;
 	items: CartItem[];
 	subtotal: number;
-	total: number;
-	discountAmount?: number;
+	voucherDiscount: number;
 	appliedVoucherCode?: string;
+	total: number;
+	totalItems: number;
 }
 
 // ============ Order Types ============
 export interface OrderLineItem {
+	id: string;
 	productId: string;
-	productName: string;
-	productImage?: string;
 	variantId: string;
-	variantName: string;
-	price: number;
+	productName: string;
+	variantSku: string;
+	variantDescription?: string;
+	imageUrl?: string;
+	unitPrice: number;
+	compareAtPrice?: number;
 	quantity: number;
-	subtotal: number;
-}
-
-export interface ShippingAddress {
-	fullName: string;
-	addressLine1: string;
-	addressLine2?: string;
-	city: string;
-	state?: string;
-	postalCode: string;
-	country: string;
-	phone?: string;
-}
-
-export interface OrderCustomer {
-	id?: string;
-	email: string;
-	name?: string;
+	totalPrice: number;
 }
 
 export interface Order {
 	id: string;
 	orderNumber: string;
-	status: string;
-	customer?: OrderCustomer;
-	shippingAddress?: ShippingAddress;
-	lineItems: OrderLineItem[];
+	customerName: string;
+	customerEmail: string;
+	customerPhone: string;
+	shippingAddress: string;
+	shippingCity: string;
+	shippingDistrict: string;
+	shippingWard: string;
+	shippingNote?: string;
 	subtotal: number;
-	shippingCost: number;
 	discountAmount: number;
+	shippingFee: number;
 	total: number;
+	voucherCode?: string;
+	status: string;
+	paymentStatus: string;
+	paymentMethod: string;
 	createdAt: string;
+	paidAt?: string;
+	shippedAt?: string;
+	deliveredAt?: string;
+	cancelledAt?: string;
+	cancellationReason?: string;
+	items: OrderLineItem[];
+}
+
+// ============ Customer Types ============
+export interface Customer {
+	id: string;
+	fullName: string;
+	email: string;
+	phone?: string;
+	tier: string;
+	totalSpent: number;
+	totalOrders: number;
+	createdAt: string;
+}
+
+export interface CustomerDetail extends Customer {
+	keycloakUserId: string;
+	dateOfBirth?: string;
+	gender?: string;
+	loyaltyPoints: number;
+	tierDiscountPercentage: number;
+	addresses: Address[];
+}
+
+export interface Address {
+	id: string;
+	label: string;
+	recipientName: string;
+	address: string;
+	ward: string;
+	district: string;
+	city: string;
+	phone: string;
+	isDefault: boolean;
+}
+
+// ============ Voucher Types ============
+export enum VoucherType {
+    Percentage = 0,
+    FixedAmount = 1,
+    FreeShipping = 2
+}
+
+export interface Voucher {
+    id: string;
+    code: string;
+    description?: string;
+    type: VoucherType | string; // Handle string from JSON
+    discountValue: number;
+    minimumOrderAmount?: number;
+    maximumDiscountAmount?: number;
+    maxUsageCount?: number;
+    currentUsageCount: number;
+    maxUsagePerCustomer?: number;
+    startDate: string;
+    endDate: string;
+    applicableCategoryId?: string;
+    applicableProductIds?: string[];
+    minimumCustomerTier?: string;
+    canCombineWithOtherVouchers: boolean;
+    canCombineWithSalePrice: boolean;
+    firstPurchaseOnly: boolean;
+    isActive: boolean;
+    isValid: boolean;
 }
 
 // ============ API Response wrapper ============
@@ -130,4 +204,21 @@ export interface ApiResponse<T> {
 	data: T;
 	success: boolean;
 	message?: string;
+}
+// ============ Brand Types ============
+export interface Brand {
+	id: string;
+	name: string;
+	urlSlug: string;
+	description?: string;
+	isActive: boolean;
+    logoUrl?: string;
+}
+
+// ============ Variant Option Types ============
+export interface VariantOption {
+    id: string; // "size", "color"
+    name: string; // "Size", "Color"
+    displayType: string;
+    values: string[];
 }

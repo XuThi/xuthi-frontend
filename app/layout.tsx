@@ -10,7 +10,9 @@ import { Footer } from "@/app/footer";
 import { Navbar } from "@/app/navbar";
 import { AppLink } from "@/components/app-link";
 import { commerce } from "@/lib/commerce";
-import { getCartCookieJson } from "@/lib/cookies";
+import { getCartCookieJson, getSessionId } from "@/lib/cookies";
+import { UserNav } from "@/components/user-nav";
+import { Providers } from "@/app/providers";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -29,16 +31,26 @@ export const metadata: Metadata = {
 
 async function getInitialCart() {
 	const cartCookie = await getCartCookieJson();
+	const sessionId = await getSessionId();
 
-	if (!cartCookie?.id) {
-		return { cart: null, cartId: null };
-	}
+	// Support both cookie-stored CartId and current SessionId
+	const cartId = cartCookie?.id;
 
 	try {
-		const cart = await commerce.cartGet({ cartId: cartCookie.id });
-		return { cart: cart ?? null, cartId: cartCookie.id };
-	} catch {
-		return { cart: null, cartId: cartCookie.id };
+		if (cartId) {
+			const cart = await commerce.cartGet({ cartId });
+			if (cart) return { cart, cartId };
+		}
+		
+		if (sessionId) {
+			const cart = await commerce.cartGetBySession({ sessionId });
+			if (cart) return { cart, cartId: cart.id };
+		}
+
+		return { cart: null, cartId: cartId || null };
+	} catch (error) {
+		console.error("Failed to load initial cart", error);
+		return { cart: null, cartId: cartId || null };
 	}
 }
 
@@ -57,7 +69,10 @@ async function CartProviderWrapper({ children }: { children: React.ReactNode }) 
 								</AppLink>
 								<Navbar />
 							</div>
-							<CartButton />
+							<div className="flex items-center gap-4">
+								<CartButton />
+								<UserNav />
+							</div>
 						</div>
 					</div>
 				</header>
@@ -77,9 +92,11 @@ export default function RootLayout({
 	return (
 		<html lang="en">
 			<body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-				<Suspense>
-					<CartProviderWrapper>{children}</CartProviderWrapper>
-				</Suspense>
+                <Providers>
+				    <Suspense>
+					    <CartProviderWrapper>{children}</CartProviderWrapper>
+				    </Suspense>
+                </Providers>
 			</body>
 		</html>
 	);

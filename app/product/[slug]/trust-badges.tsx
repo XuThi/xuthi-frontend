@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { RotateCcw, Shield, Truck } from "lucide-react";
+import { trustT } from "@/lib/i18n/translations";
 
 type TrustBadge = {
 	icon: LucideIcon;
@@ -8,9 +9,9 @@ type TrustBadge = {
 };
 
 const defaultBadges: TrustBadge[] = [
-	{ icon: Truck, title: "Free Shipping", description: "Orders over $500" },
-	{ icon: Shield, title: "10-Year Warranty", description: "Full coverage" },
-	{ icon: RotateCcw, title: "30-Day Returns", description: "Hassle-free" },
+	{ icon: Truck, title: trustT.freeShipping, description: trustT.freeShippingDesc },
+	{ icon: Shield, title: trustT.quality, description: trustT.qualityDesc },
+	{ icon: RotateCcw, title: trustT.support, description: trustT.supportDesc },
 ];
 
 export function TrustBadges({ badges = defaultBadges }: { badges?: TrustBadge[] }) {
