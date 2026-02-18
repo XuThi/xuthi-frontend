@@ -53,10 +53,14 @@ export default async function OrdersPage() {
                   <TableCell>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={
-                        order.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                        order.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
-                        order.status === 'Processing' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
+                        order.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                        order.status === 'Confirmed' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                        order.status === 'Processing' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' :
+                        order.status === 'Shipped' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                        order.status === 'Delivered' ? 'bg-green-100 text-green-800 border-green-300' :
+                        order.status === 'Completed' ? 'bg-green-100 text-green-700 border-green-300' :
+                        order.status === 'Cancelled' ? 'bg-red-100 text-red-700 border-red-300' :
+                        'bg-gray-100 text-gray-700 border-gray-300'
                     }>
                         {order.status}
                     </Badge>

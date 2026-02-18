@@ -1,7 +1,16 @@
-"use client";
+"use client"
 
-import { AuthProvider } from "@/lib/auth-context";
+import { Suspense } from "react"
+import { AuthProvider } from "@/lib/auth-context"
+import { Toaster } from "@/components/ui/sonner"
 
 export function Providers({ children }: { children: React.ReactNode }) {
-	return <AuthProvider>{children}</AuthProvider>;
+    return (
+        <Suspense>
+            <AuthProvider>
+                {children}
+                <Toaster richColors position="top-right" />
+            </AuthProvider>
+        </Suspense>
+    )
 }

@@ -1,41 +1,142 @@
-import { ArrowRightIcon } from "lucide-react";
-import { AppLink } from "../app-link";
+"use client"
+
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { api } from "@/lib/api/client"
+
+interface CampaignSlide {
+    image: string
+    link: string
+    alt: string
+}
+
+const fallbackSlides: CampaignSlide[] = [
+    {
+        image: "",
+        link: "/collection",
+        alt: "Khuyến mãi",
+    },
+]
 
 export function Hero() {
-	return (
-		<section className="relative overflow-hidden bg-secondary/30">
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="py-16 sm:py-20 lg:py-28">
-					<div className="max-w-2xl">
-						<h1 className="text-4xl sm:text-5xl lg:text-6xl font-medium tracking-tight text-foreground">
-							Curated essentials for modern living
-						</h1>
-						<p className="mt-6 text-lg sm:text-xl text-muted-foreground leading-relaxed">
-							Discover our thoughtfully designed collection of premium products, crafted with care and built
-							to last.
-						</p>
-						<div className="mt-10 flex flex-col sm:flex-row gap-4">
-							<AppLink
-								prefetch={"eager"}
-								href="#products"
-								className="inline-flex items-center justify-center gap-2 h-12 px-8 bg-foreground text-primary-foreground rounded-full text-base font-medium hover:bg-foreground/90 transition-colors"
-							>
-								Shop Collection
-								<ArrowRightIcon className="h-4 w-4" />
-							</AppLink>
-							<AppLink
-								prefetch={"eager"}
-								href="#about"
-								className="inline-flex items-center justify-center gap-2 h-12 px-8 border border-border rounded-full text-base font-medium hover:bg-secondary transition-colors"
-							>
-								Our Story
-							</AppLink>
-						</div>
-					</div>
-				</div>
-			</div>
-			{/* Subtle decorative element */}
-			<div className="absolute top-1/2 right-0 -translate-y-1/2 w-1/3 h-full bg-linear-to-l from-secondary/50 to-transparent pointer-events-none hidden lg:block" />
-		</section>
-	);
+    const [currentSlide, setCurrentSlide] = useState(0)
+    const [slides, setSlides] = useState<CampaignSlide[]>(fallbackSlides)
+
+    const goToSlide = (index: number) => {
+        if (slides.length === 0) return
+        const normalized = (index + slides.length) % slides.length
+        setCurrentSlide(normalized)
+    }
+
+    useEffect(() => {
+        const fetchCampaigns = async () => {
+            try {
+                const result = await api.saleCampaignBrowse({
+                    isActive: true,
+                    onlyRunning: true,
+                    pageSize: 10,
+                })
+
+                const campaigns = result.data || []
+                const bannerSlides = campaigns
+                    .filter((c) => c.bannerImageUrl)
+                    .map((c) => ({
+                        image: c.bannerImageUrl!,
+                        link: c.slug ? `/sale/${c.slug}` : "/collection",
+                        alt: c.name,
+                    }))
+
+                if (bannerSlides.length > 0) {
+                    setSlides(bannerSlides)
+                }
+            } catch (error) {
+                console.error("Failed to load campaign banners for hero", error)
+            }
+        }
+
+        fetchCampaigns()
+    }, [])
+
+    // Auto-play carousel
+    useEffect(() => {
+        if (slides.length <= 1) return
+        const interval = setInterval(() => {
+            setCurrentSlide((prev) => (prev + 1) % slides.length)
+        }, 1500)
+        return () => clearInterval(interval)
+    }, [slides.length])
+
+    useEffect(() => {
+        if (currentSlide >= slides.length) {
+            setCurrentSlide(0)
+        }
+    }, [slides.length, currentSlide])
+
+    return (
+        <section className="relative w-full overflow-hidden">
+            <div
+                className="relative w-full"
+                style={{
+                    aspectRatio: "16/8",
+                    minHeight: "500px",
+                    maxHeight: "820px",
+                }}
+            >
+                {slides.map((slide, index) => (
+                    <div
+                        key={index}
+                        className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${
+                            index === currentSlide
+                                ? "opacity-100 z-10"
+                                : "opacity-0 z-0"
+                        }`}
+                    >
+                        {slide.image ? (
+                            <Link
+                                href={slide.link}
+                                className="block w-full h-full cursor-pointer"
+                            >
+                                <Image
+                                    src={slide.image}
+                                    alt={slide.alt}
+                                    fill
+                                    className="object-cover object-center"
+                                    priority={index === 0}
+                                    sizes="100vw"
+                                />
+                            </Link>
+                        ) : (
+                            <Link
+                                href={slide.link}
+                                className="block w-full h-full cursor-pointer"
+                            >
+                                <div className="absolute inset-0 bg-neutral-100" />
+                            </Link>
+                        )}
+                    </div>
+                ))}
+
+                {slides.length > 1 && (
+                    <>
+                        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+                            {slides.map((_, index) => (
+                                <button
+                                    key={`dot-${index}`}
+                                    type="button"
+                                    onClick={() => goToSlide(index)}
+                                    className={`h-2.5 w-2.5 rounded-full transition ${
+                                        index === currentSlide
+                                            ? "bg-white"
+                                            : "bg-white/50 hover:bg-white/80"
+                                    }`}
+                                    aria-label={`Đi tới slide ${index + 1}`}
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
+        </section>
+    )
 }

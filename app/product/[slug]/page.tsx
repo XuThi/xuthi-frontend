@@ -1,89 +1,196 @@
-import { cacheLife } from "next/cache";
-import { notFound } from "next/navigation";
-import { AddToCartButton } from "@/app/product/[slug]/add-to-cart-button";
-import { ImageGallery } from "@/app/product/[slug]/image-gallery";
-import { ProductFeatures } from "@/app/product/[slug]/product-features";
-import { commerce } from "@/lib/commerce";
-import { CURRENCY, LOCALE } from "@/lib/constants";
-import { formatMoney } from "@/lib/money";
+import { cacheLife } from "next/cache"
+import { notFound } from "next/navigation"
+import { AddToCartButton } from "@/app/product/[slug]/add-to-cart-button"
+import { ImageGallery } from "@/app/product/[slug]/image-gallery"
+import { ProductFeatures } from "@/app/product/[slug]/product-features"
+import { commerce } from "@/lib/commerce"
+import { CURRENCY, LOCALE } from "@/lib/constants"
+import { formatMoney } from "@/lib/money"
 
-export default async function ProductPage(props: { params: Promise<{ slug: string }> }) {
-	"use cache";
-	cacheLife("minutes");
+export default async function ProductPage(props: {
+    params: Promise<{ slug: string }>
+}) {
+    "use cache"
+    cacheLife("minutes")
 
-	return <ProductDetails params={props.params} />;
+    return <ProductDetails params={props.params} />
 }
 
-const ProductDetails = async ({ params }: { params: Promise<{ slug: string }> }) => {
-	const { slug } = await params;
+const ProductDetails = async ({
+    params,
+}: {
+    params: Promise<{ slug: string }>
+}) => {
+    const { slug } = await params
 
-	// Guard against undefined slug (can happen during cache warming)
-	if (!slug || slug === "undefined") {
-		notFound();
-	}
+    // Guard against undefined slug (can happen during cache warming)
+    if (!slug || slug === "undefined") {
+        notFound()
+    }
 
-	const product = await commerce.productGet({ idOrSlug: slug });
+    const product = await commerce.productGet({ idOrSlug: slug })
 
-	if (!product) {
-		notFound();
-	}
+    if (!product) {
+        notFound()
+    }
 
-	const { minPrice, maxPrice } = product.variants.reduce(
-		(acc, v) => {
-			const price = BigInt(v.price);
-			return {
-				minPrice: price < acc.minPrice ? price : acc.minPrice,
-				maxPrice: price > acc.maxPrice ? price : acc.maxPrice,
-			};
-		},
-		{
-			minPrice: product.variants[0] ? BigInt(product.variants[0].price) : BigInt(0),
-			maxPrice: product.variants[0] ? BigInt(product.variants[0].price) : BigInt(0),
-		},
-	);
+    const { minPrice, maxPrice } = product.variants.reduce(
+        (acc, v) => {
+            const price = BigInt(v.price)
+            return {
+                minPrice: price < acc.minPrice ? price : acc.minPrice,
+                maxPrice: price > acc.maxPrice ? price : acc.maxPrice,
+            }
+        },
+        {
+            minPrice: product.variants[0]
+                ? BigInt(product.variants[0].price)
+                : BigInt(0),
+            maxPrice: product.variants[0]
+                ? BigInt(product.variants[0].price)
+                : BigInt(0),
+        },
+    )
 
-	const priceDisplay =
-		product.variants.length > 1 && minPrice !== maxPrice
-			? `${formatMoney({ amount: minPrice, currency: CURRENCY, locale: LOCALE })} - ${formatMoney({ amount: maxPrice, currency: CURRENCY, locale: LOCALE })}`
-			: formatMoney({ amount: minPrice, currency: CURRENCY, locale: LOCALE });
+    const saleItems = (
+        await commerce.saleItemsGet({
+            productIds: [product.id],
+            variantIds: product.variants.map((variant) => variant.id),
+        })
+    ).data
 
-	const allImages = [
-		...product.images,
-		...product.variants.flatMap((v) => v.images).filter((img) => !product.images.includes(img)),
-	];
+    const saleItemsByVariant = saleItems.reduce<
+        Record<string, { salePrice: number; originalPrice?: number | null }>
+    >((acc, item) => {
+        if (item.variantId) {
+            acc[item.variantId] = {
+                salePrice: item.salePrice,
+                originalPrice: item.originalPrice,
+            }
+        }
+        return acc
+    }, {})
 
-	return (
-		<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-			<div className="lg:grid lg:grid-cols-2 lg:gap-16">
-				{/* Left: Image Gallery (sticky on desktop) */}
-				<ImageGallery images={allImages} productName={product.name} variants={product.variants} />
+    const productLevelSale = saleItems.find((item) => !item.variantId)
+    const salePrices = saleItems.map((item) => item.salePrice)
+    const originalPrices = saleItems
+        .map((item) => item.originalPrice)
+        .filter((price): price is number => typeof price === "number")
 
-				{/* Right: Product Details */}
-				<div className="mt-8 lg:mt-0 space-y-8">
-					{/* Title, Price, Description */}
-					<div className="space-y-4">
-						<h1 className="text-4xl font-medium tracking-tight text-foreground lg:text-5xl text-balance">
-							{product.name}
-						</h1>
-						<p className="text-2xl font-semibold tracking-tight">{priceDisplay}</p>
-						{product.summary && <p className="text-muted-foreground leading-relaxed">{product.summary}</p>}
-					</div>
+    const minSale = salePrices.length ? Math.min(...salePrices) : null
+    const maxSale = salePrices.length ? Math.max(...salePrices) : null
+    const minOriginal = originalPrices.length
+        ? Math.min(...originalPrices)
+        : minPrice !== null
+          ? Number(minPrice)
+          : null
+    const maxOriginal = originalPrices.length
+        ? Math.max(...originalPrices)
+        : maxPrice !== null
+          ? Number(maxPrice)
+          : null
 
-					{/* Variant Selector, Quantity, Add to Cart, Trust Badges */}
-					<AddToCartButton
-						variants={product.variants}
-						product={{
-							id: product.id,
-							name: product.name,
-							slug: product.slug,
-							images: product.images,
-						}}
-					/>
-				</div>
-			</div>
+    const priceDisplay =
+        product.variants.length > 1 && minPrice !== maxPrice
+            ? `${formatMoney({ amount: minPrice, currency: CURRENCY, locale: LOCALE })} - ${formatMoney({ amount: maxPrice, currency: CURRENCY, locale: LOCALE })}`
+            : formatMoney({
+                  amount: minPrice,
+                  currency: CURRENCY,
+                  locale: LOCALE,
+              })
+    const salePriceDisplay =
+        minSale !== null && maxSale !== null
+            ? minSale !== maxSale
+                ? `${formatMoney({ amount: BigInt(Math.round(minSale)), currency: CURRENCY, locale: LOCALE })} - ${formatMoney({ amount: BigInt(Math.round(maxSale)), currency: CURRENCY, locale: LOCALE })}`
+                : formatMoney({
+                      amount: BigInt(Math.round(minSale)),
+                      currency: CURRENCY,
+                      locale: LOCALE,
+                  })
+            : null
+    const originalPriceDisplay =
+        minOriginal !== null && maxOriginal !== null
+            ? minOriginal !== maxOriginal
+                ? `${formatMoney({ amount: BigInt(Math.round(minOriginal)), currency: CURRENCY, locale: LOCALE })} - ${formatMoney({ amount: BigInt(Math.round(maxOriginal)), currency: CURRENCY, locale: LOCALE })}`
+                : formatMoney({
+                      amount: BigInt(Math.round(minOriginal)),
+                      currency: CURRENCY,
+                      locale: LOCALE,
+                  })
+            : null
 
-			{/* Features Section (full width below) */}
-			<ProductFeatures />
-		</div>
-	);
-};
+    const allImages = [
+        ...product.images,
+        ...product.variants
+            .flatMap((v) => v.images)
+            .filter((img) => !product.images.includes(img)),
+    ]
+
+    return (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="lg:grid lg:grid-cols-2 lg:gap-16">
+                {/* Left: Image Gallery (sticky on desktop) */}
+                <ImageGallery
+                    images={allImages}
+                    productName={product.name}
+                    variants={product.variants}
+                />
+
+                {/* Right: Product Details */}
+                <div className="mt-8 lg:mt-0 space-y-8">
+                    {/* Title, Price, Description */}
+                    <div className="space-y-4">
+                        <h1 className="text-4xl font-medium tracking-tight text-foreground lg:text-5xl text-balance">
+                            {product.name}
+                        </h1>
+                        {salePriceDisplay ? (
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl font-semibold tracking-tight">
+                                    {salePriceDisplay}
+                                </span>
+                                {originalPriceDisplay && (
+                                    <span className="text-base text-muted-foreground line-through">
+                                        {originalPriceDisplay}
+                                    </span>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-2xl font-semibold tracking-tight">
+                                {priceDisplay}
+                            </p>
+                        )}
+                        {product.summary && (
+                            <p className="text-muted-foreground leading-relaxed">
+                                {product.summary}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Variant Selector, Quantity, Add to Cart, Trust Badges */}
+                    <AddToCartButton
+                        variants={product.variants}
+                        salePricing={{
+                            byVariantId: saleItemsByVariant,
+                            productFallback: productLevelSale
+                                ? {
+                                      salePrice: productLevelSale.salePrice,
+                                      originalPrice:
+                                          productLevelSale.originalPrice,
+                                  }
+                                : null,
+                        }}
+                        product={{
+                            id: product.id,
+                            name: product.name,
+                            slug: product.slug,
+                            images: product.images,
+                        }}
+                    />
+                </div>
+            </div>
+
+            {/* Features Section (full width below) */}
+            <ProductFeatures />
+        </div>
+    )
+}

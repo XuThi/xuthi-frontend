@@ -3,6 +3,7 @@ import "@/app/globals.css";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
+import Image from "next/image";
 import { CartProvider } from "@/app/cart/cart-context";
 import { CartSidebar } from "@/app/cart/cart-sidebar";
 import { CartButton } from "@/app/cart-button";
@@ -64,9 +65,16 @@ async function CartProviderWrapper({ children }: { children: React.ReactNode }) 
 					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 						<div className="flex items-center justify-between h-16">
 							<div className="flex items-center gap-8">
-								<AppLink prefetch={"eager"} href="/" className="text-xl font-bold">
-									XuThi Store
-								</AppLink>
+								<AppLink prefetch={"eager"} href="/" className="flex items-center gap-2 text-xl font-bold">
+								<Image
+									src="https://res.cloudinary.com/dxlhncwp0/image/upload/v1769941817/logo_qlelti.svg"
+									alt="XuThi"
+									width={32}
+									height={32}
+									priority
+								/>
+								<span>XuThi Store</span>
+							</AppLink>
 								<Navbar />
 							</div>
 							<div className="flex items-center gap-4">

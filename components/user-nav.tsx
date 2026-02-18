@@ -56,6 +56,11 @@ export function UserNav() {
     ? `${user.firstName} ${user.lastName}`
     : user?.email || 'User';
 
+  // Check if user has admin/staff role
+  const isAdmin = user?.roles?.some(
+    (role) => role.toLowerCase() === 'admin' || role.toLowerCase() === 'staff'
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -89,12 +94,14 @@ export function UserNav() {
                 <span>Đơn hàng</span>
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-             <Link href="/admin">
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                <span>Quản trị</span>
-             </Link>
-          </DropdownMenuItem>
+          {isAdmin && (
+            <DropdownMenuItem asChild>
+               <Link href="/admin">
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  <span>Quản trị</span>
+               </Link>
+            </DropdownMenuItem>
+          )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout}>
