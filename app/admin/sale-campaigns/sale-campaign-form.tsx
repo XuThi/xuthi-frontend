@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { api } from "@/lib/api/client"
 import type { Product, SaleCampaignDetail } from "@/lib/api/types"
 import { toast } from "sonner"
@@ -387,22 +394,26 @@ export default function SaleCampaignForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="text-sm font-medium">Loại campaign</label>
-                    <select
+                    <Select
                         value={formData.type}
-                        onChange={(e) =>
+                        onValueChange={(value) =>
                             setFormData((prev) => ({
                                 ...prev,
-                                type: e.target.value,
+                                type: value,
                             }))
                         }
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
-                        {CAMPAIGN_TYPES.map((ct) => (
-                            <option key={ct.value} value={ct.value}>
-                                {ct.label}
-                            </option>
-                        ))}
-                    </select>
+                        <SelectTrigger className="mt-1 w-full">
+                            <SelectValue placeholder="Chọn loại campaign" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {CAMPAIGN_TYPES.map((ct) => (
+                                <SelectItem key={ct.value} value={ct.value}>
+                                    {ct.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
                 <div className="space-y-2 pt-5">
                     <label className="flex items-center gap-2 text-sm">
@@ -476,20 +487,24 @@ export default function SaleCampaignForm({
 
                     {/* Add new product row */}
                     <div className="grid grid-cols-1 gap-3 rounded-lg border border-blue-100 bg-blue-50/60 p-4 md:grid-cols-[2.2fr_1fr_1fr_auto] md:items-end">
-                        <select
+                        <Select
                             value={newItem.productId}
-                            onChange={(e) =>
-                                handleNewItemProductChange(e.target.value)
-                            }
-                            className="min-w-0 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                            onValueChange={handleNewItemProductChange}
                         >
-                            <option value="">-- Chọn sản phẩm --</option>
-                            {availableProducts.map((product) => (
-                                <option key={product.id} value={product.id}>
-                                    {product.name}
-                                </option>
-                            ))}
-                        </select>
+                            <SelectTrigger className="min-w-0 bg-white">
+                                <SelectValue placeholder="-- Chọn sản phẩm --" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availableProducts.map((product) => (
+                                    <SelectItem
+                                        key={product.id}
+                                        value={product.id}
+                                    >
+                                        {product.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <Input
                             placeholder="Giá sale *"
                             data-no-spinner

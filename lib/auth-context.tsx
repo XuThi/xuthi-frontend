@@ -6,6 +6,7 @@ import {
     useState,
     useEffect,
     useCallback,
+    useRef,
     ReactNode,
 } from "react"
 import { useRouter, usePathname } from "next/navigation"
@@ -60,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
     const pathname = usePathname()
+    const customerSyncInFlightRef = useRef<Record<string, Promise<void>>>({})
+    const customerSyncRecentRef = useRef<Record<string, number>>({})
 
     // Load token from localStorage on mount
     useEffect(() => {
@@ -94,25 +97,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
                 if (!userData?.id || !userData?.email) return
 
+                const syncKey = `${userData.id}|${userData.email.toLowerCase()}`
+                const now = Date.now()
+                const recentAt = customerSyncRecentRef.current[syncKey]
+                if (recentAt && now - recentAt < 10_000) {
+                    return
+                }
+
+                const existingSync = customerSyncInFlightRef.current[syncKey]
+                if (existingSync) {
+                    await existingSync
+                    return
+                }
+
                 const fullName = [userData.firstName, userData.lastName]
                     .filter(Boolean)
                     .join(" ")
                     .trim()
 
-                await fetch(`${API_URL}/api/customers/sync`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        ...(authToken
-                            ? { Authorization: `Bearer ${authToken}` }
-                            : {}),
-                    },
-                    body: JSON.stringify({
-                        externalUserId: userData.id,
-                        email: userData.email,
-                        fullName: fullName || null,
-                    }),
-                })
+                const syncPromise = (async () => {
+                    const response = await fetch(
+                        `${API_URL}/api/customers/sync`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                ...(authToken
+                                    ? { Authorization: `Bearer ${authToken}` }
+                                    : {}),
+                            },
+                            body: JSON.stringify({
+                                externalUserId: userData.id,
+                                email: userData.email,
+                                fullName: fullName || null,
+                            }),
+                        },
+                    )
+
+                    if (!response.ok) {
+                        throw new Error("Customer sync failed")
+                    }
+
+                    customerSyncRecentRef.current[syncKey] = Date.now()
+                })()
+
+                customerSyncInFlightRef.current[syncKey] = syncPromise
+                try {
+                    await syncPromise
+                } finally {
+                    delete customerSyncInFlightRef.current[syncKey]
+                }
             } catch (error) {
                 console.warn("Failed to sync customer profile:", error)
             }

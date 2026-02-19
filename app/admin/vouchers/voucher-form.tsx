@@ -343,6 +343,9 @@ export default function VoucherForm({ initialData }: VoucherFormProps) {
                                         }}
                                     />
                                 </FormControl>
+                                <FormDescription className="invisible">
+                                    Căn chiều cao với trường giá trị giảm
+                                </FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}

@@ -272,10 +272,10 @@ async function brandBrowse(): Promise<{ data: Brand[] }> {
 
 async function brandGet(id: string): Promise<Brand | null> {
     try {
-        // Fallback: Get all brands and find by ID (since we lack GET /api/brands/{id})
-        // TODO: Implement GET /api/brands/{id} on backend for efficiency
-        const { data } = await brandBrowse()
-        return data.find((b) => b.id === id) || null
+        const result = await apiFetch<{ brand: Brand } | Brand>(
+            `/api/brands/${id}`,
+        )
+        return "brand" in result ? result.brand : result
     } catch {
         return null
     }

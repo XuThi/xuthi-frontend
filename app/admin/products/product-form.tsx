@@ -124,6 +124,15 @@ const toSkuSegment = (value: string) => {
         .toUpperCase()
 }
 
+const SUPPORTED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"]
+
+const isSupportedImageFile = (file: File) => {
+    const lowerFileName = file.name.toLowerCase()
+    return SUPPORTED_IMAGE_EXTENSIONS.some((extension) =>
+        lowerFileName.endsWith(extension),
+    )
+}
+
 // ============ Image Upload Component ============
 
 function ImageUploader({
@@ -206,7 +215,7 @@ function ImageUploader({
             <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp,.gif"
                 multiple
                 onChange={handleUpload}
                 className="hidden"
@@ -289,8 +298,21 @@ export default function ProductForm({ initialData }: ProductFormProps) {
 
     const handlePickFiles = (files: FileList) => {
         const list = Array.from(files)
-        const previews = list.map((file) => URL.createObjectURL(file))
-        setPendingImageFiles((prev) => [...prev, ...list])
+        const validFiles = list.filter(isSupportedImageFile)
+        const invalidCount = list.length - validFiles.length
+
+        if (invalidCount > 0) {
+            alert(
+                `Có ${invalidCount} ảnh không hỗ trợ định dạng. Chỉ chấp nhận: ${SUPPORTED_IMAGE_EXTENSIONS.join(", ")}`,
+            )
+        }
+
+        if (validFiles.length === 0) {
+            return
+        }
+
+        const previews = validFiles.map((file) => URL.createObjectURL(file))
+        setPendingImageFiles((prev) => [...prev, ...validFiles])
         setPendingImagePreviews((prev) => [...prev, ...previews])
     }
 
@@ -467,7 +489,7 @@ export default function ProductForm({ initialData }: ProductFormProps) {
             const formData = new FormData()
             formData.append("data", JSON.stringify(payload))
             pendingImageFiles.forEach((file) => {
-                formData.append("images", file)
+                formData.append("images", file, file.name)
             })
 
             if (initialData) {
@@ -482,7 +504,10 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                     },
                 )
 
-                if (!response.ok) throw new Error("Failed to update product")
+                if (!response.ok) {
+                    const errorText = await response.text()
+                    throw new Error(errorText || "Failed to update product")
+                }
             } else {
                 const response = await fetch(`${API_URL}/api/products`, {
                     method: "POST",
@@ -492,13 +517,20 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                     body: formData,
                 })
 
-                if (!response.ok) throw new Error("Failed to create product")
+                if (!response.ok) {
+                    const errorText = await response.text()
+                    throw new Error(errorText || "Failed to create product")
+                }
             }
 
             router.push("/admin/products")
-            router.refresh()
         } catch (error) {
             console.error("Submit error:", error)
+            alert(
+                error instanceof Error
+                    ? error.message
+                    : "Lưu sản phẩm thất bại",
+            )
         } finally {
             setLoading(false)
         }
@@ -1000,19 +1032,19 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                                         <Table className="w-full min-w-245 table-fixed">
                                             <TableHeader>
                                                 <TableRow>
-                                                    <TableHead className="w-[24%] whitespace-nowrap">
+                                                    <TableHead className="w-[16%] whitespace-nowrap">
                                                         Biến thể
                                                     </TableHead>
-                                                    <TableHead className="w-[20%] whitespace-nowrap">
+                                                    <TableHead className="w-[13%] whitespace-nowrap">
                                                         Giá
                                                     </TableHead>
-                                                    <TableHead className="w-[20%] whitespace-nowrap">
+                                                    <TableHead className="w-[13%] whitespace-nowrap">
                                                         Giá gốc
                                                     </TableHead>
-                                                    <TableHead className="w-[24%] whitespace-nowrap">
+                                                    <TableHead className="w-[15%] whitespace-nowrap">
                                                         SKU
                                                     </TableHead>
-                                                    <TableHead className="w-[12%] whitespace-nowrap">
+                                                    <TableHead className="w-[9%] whitespace-nowrap">
                                                         Tồn kho
                                                     </TableHead>
                                                 </TableRow>

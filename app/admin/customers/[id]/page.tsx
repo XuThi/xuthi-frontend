@@ -24,6 +24,14 @@ function normalizeTier(tier: unknown) {
     return String(tier ?? "").toLowerCase()
 }
 
+function getTierLabel(tier: unknown) {
+    const normalized = normalizeTier(tier)
+    if (normalized === "4" || normalized === "platinum") return "Platinum"
+    if (normalized === "3" || normalized === "gold") return "Gold"
+    if (normalized === "2" || normalized === "silver") return "Silver"
+    return "Standard"
+}
+
 function getTierBadgeClass(tier: unknown) {
     switch (normalizeTier(tier)) {
         case "platinum":
@@ -131,7 +139,7 @@ export default function CustomerDetailPage() {
                     variant="outline"
                     className={`text-base px-4 py-1 ${getTierBadgeClass(customer.tier)}`}
                 >
-                    {String(customer.tier ?? "")}
+                    {getTierLabel(customer.tier)}
                 </Badge>
             </div>
 

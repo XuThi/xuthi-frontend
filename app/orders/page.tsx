@@ -16,9 +16,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { BFF_API_ENDPOINT } from "@/lib/constants"
 
-// TODO: Again what's with the fucking API_URL randomly appearing everywhere
-const API_URL = "/api/bff"
+const API_URL = BFF_API_ENDPOINT
 
 // Order summary from list endpoint
 interface OrderSummary {
