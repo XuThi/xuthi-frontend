@@ -82,7 +82,7 @@ const statusOptions = [
         value: "Confirmed",
         label: "Đã xác nhận",
         icon: CheckCircle,
-        color: "bg-blue-100 text-blue-800",
+        color: "bg-cyan-100 text-cyan-800",
     },
     {
         value: "Processing",

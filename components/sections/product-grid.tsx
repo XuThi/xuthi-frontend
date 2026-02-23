@@ -20,8 +20,8 @@ type ProductGridProps = {
 }
 
 export async function ProductGrid({
-    title = "Featured Products",
-    description = "Handpicked favorites from our collection",
+    title = "Sản phẩm nổi bật",
+    description = "Tuyển chọn dành cho bạn",
     products,
     limit = 6,
     showViewAll = true,
@@ -64,7 +64,7 @@ export async function ProductGrid({
                         href={viewAllHref}
                         className="hidden sm:inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
-                        View all
+                        Xem tất cả
                         <ArrowRight className="h-4 w-4" />
                     </AppLink>
                 )}
@@ -111,6 +111,20 @@ export async function ProductGrid({
                             (price): price is number =>
                                 typeof price === "number",
                         )
+                    const discountPercents = productSaleItems
+                        .map((item) => {
+                            const original = item.originalPrice
+                            if (
+                                typeof original !== "number" ||
+                                original <= item.salePrice
+                            ) {
+                                return 0
+                            }
+                            return Math.round(
+                                ((original - item.salePrice) / original) * 100,
+                            )
+                        })
+                        .filter((percent) => percent > 0)
 
                     const minSale = salePrices.length
                         ? Math.min(...salePrices)
@@ -163,6 +177,9 @@ export async function ProductGrid({
                                       locale: LOCALE,
                                   })
                             : null
+                    const maxDiscountPercent = discountPercents.length
+                        ? Math.max(...discountPercents)
+                        : null
 
                     const allImages = [
                         ...(product.images ?? []),
@@ -183,6 +200,11 @@ export async function ProductGrid({
                             className="group"
                         >
                             <div className="relative aspect-square bg-secondary rounded-2xl overflow-hidden mb-4">
+                                {maxDiscountPercent && (
+                                    <span className="absolute left-3 top-3 z-10 rounded-full bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground">
+                                        -{maxDiscountPercent}%
+                                    </span>
+                                )}
                                 {primaryImage && (
                                     <Image
                                         src={primaryImage}
@@ -235,7 +257,7 @@ export async function ProductGrid({
                         href={viewAllHref}
                         className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
-                        View all products
+                        Xem tất cả sản phẩm
                         <ArrowRight className="h-4 w-4" />
                     </AppLink>
                 </div>

@@ -117,6 +117,20 @@ export function CollectionProducts({
                             (price): price is number =>
                                 typeof price === "number",
                         )
+                    const discountPercents = productSaleItems
+                        .map((item) => {
+                            const original = item.originalPrice
+                            if (
+                                typeof original !== "number" ||
+                                original <= item.salePrice
+                            ) {
+                                return 0
+                            }
+                            return Math.round(
+                                ((original - item.salePrice) / original) * 100,
+                            )
+                        })
+                        .filter((percent) => percent > 0)
 
                     const minSale = salePrices.length
                         ? Math.min(...salePrices)
@@ -170,6 +184,9 @@ export function CollectionProducts({
                                       locale: LOCALE,
                                   })
                             : null
+                    const maxDiscountPercent = discountPercents.length
+                        ? Math.max(...discountPercents)
+                        : null
 
                     const allImages = [
                         ...(product.images ?? []),
@@ -190,6 +207,11 @@ export function CollectionProducts({
                             className="group"
                         >
                             <div className="relative aspect-square bg-secondary rounded-2xl overflow-hidden mb-4">
+                                {maxDiscountPercent && (
+                                    <span className="absolute left-3 top-3 z-10 rounded-full bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground">
+                                        -{maxDiscountPercent}%
+                                    </span>
+                                )}
                                 {primaryImage && (
                                     <Image
                                         src={primaryImage}
@@ -243,7 +265,7 @@ export function CollectionProducts({
                         disabled={loading}
                         className="inline-flex items-center rounded-full border border-border px-6 py-2 text-sm font-medium transition-colors hover:bg-secondary disabled:opacity-50"
                     >
-                        {loading ? "Dang tai..." : "Tai them"}
+                        {loading ? "Đang tải..." : "Tải thêm"}
                     </button>
                 </div>
             )}

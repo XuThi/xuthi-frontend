@@ -32,6 +32,50 @@ type VariantGroup = {
 	options: VariantOption[];
 };
 
+const COLOR_ATTRIBUTE_KEYS = new Set(["color", "mau", "mausac", "mau-sac"]);
+
+const COLOR_VALUE_MAP: Record<string, string> = {
+	"đen": "#111827",
+	"den": "#111827",
+	"trắng": "#FFFFFF",
+	"trang": "#FFFFFF",
+	"đỏ": "#DC2626",
+	"do": "#DC2626",
+	"hồng": "#EC4899",
+	"hong": "#EC4899",
+	"be": "#D6BC9A",
+	"nude": "#D6BC9A",
+	"bạc": "#9CA3AF",
+	"bac": "#9CA3AF",
+	"vàng": "#F59E0B",
+	"vang": "#F59E0B",
+};
+
+function normalizeVietnamese(value: string): string {
+	return value
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/đ/g, "d")
+		.replace(/Đ/g, "D");
+}
+
+function normalizeKey(value: string): string {
+	return normalizeVietnamese(value)
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/(^-|-$)+/g, "");
+}
+
+function resolveColorHex(value: string): string | null {
+	const trimmed = value.trim();
+	if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(trimmed)) {
+		return trimmed;
+	}
+
+	const normalized = normalizeVietnamese(trimmed).toLowerCase();
+	return COLOR_VALUE_MAP[normalized] ?? null;
+}
+
 type VariantSelectorProps = {
 	variants: Variant[];
 	selectedVariant: Variant | undefined;
@@ -59,15 +103,20 @@ function processVariants(variants: Variant[]): VariantGroup[] {
 		}
 
 		// Convert to VariantGroup format
-		return Array.from(attributeGroups.entries()).map(([label, values]) => ({
-			label,
-			type: "string" as const, // Default to string type for new format
-			options: Array.from(values).map((value) => ({
-				id: value, // Use value as ID for new format
-				value,
-				colorValue: null,
-			})),
-		}));
+		return Array.from(attributeGroups.entries()).map(([label, values]) => {
+			const normalizedLabel = normalizeKey(label);
+			const isColor = COLOR_ATTRIBUTE_KEYS.has(normalizedLabel);
+
+			return {
+				label,
+				type: isColor ? ("color" as const) : ("string" as const),
+				options: Array.from(values).map((value) => ({
+					id: `${normalizedLabel}-${normalizeKey(value)}`,
+					value,
+					colorValue: isColor ? resolveColorHex(value) : null,
+				})),
+			};
+		});
 	}
 
 	if (hasCombinations) {
@@ -172,6 +221,33 @@ export function VariantSelector({ variants, selectedVariant, onVariantChange }: 
 		onVariantChange(matchingVariant);
 	};
 
+	const isOptionAvailable = (groupLabel: string, optionValue: string) => {
+		const current = { ...selectedOptions, [groupLabel]: optionValue };
+
+		if (hasAttributes) {
+			return variants.some((variant) => {
+				if (!variant.attributes || variant.stockQuantity <= 0) return false;
+				return Object.entries(current).every(([key, value]) => {
+					if (!value) return true;
+					return variant.attributes?.[key] === value;
+				});
+			});
+		}
+
+		return variants.some((variant) => {
+			if (!variant.combinations || variant.stockQuantity <= 0) return false;
+			const combinationMap: Record<string, string> = {};
+			for (const c of variant.combinations) {
+				combinationMap[c.variantValue.variantType.label] = c.variantValue.value;
+			}
+
+			return Object.entries(current).every(([key, value]) => {
+				if (!value) return true;
+				return combinationMap[key] === value;
+			});
+		});
+	};
+
 	if (variantGroups.length === 0) {
 		return null;
 	}
@@ -194,6 +270,7 @@ export function VariantSelector({ variants, selectedVariant, onVariantChange }: 
 								<div className="flex gap-3">
 									{group.options.map((option) => {
 										const isSelected = selectedValue === option.value;
+										const isAvailable = isOptionAvailable(group.label, option.value);
 										const isLightColor =
 											option.colorValue?.toUpperCase() === "#FFFFFF" ||
 											option.colorValue?.toUpperCase() === "#FFFFF0" ||
@@ -203,9 +280,11 @@ export function VariantSelector({ variants, selectedVariant, onVariantChange }: 
 											<button
 												key={option.id}
 												type="button"
+												disabled={!isAvailable}
 												onClick={() => handleOptionSelect(group.label, option.value)}
 												className={cn(
 													"relative h-12 w-12 rounded-full transition-all duration-200",
+													!isAvailable && "cursor-not-allowed opacity-35",
 													isSelected
 														? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
 														: "hover:ring-2 hover:ring-muted-foreground hover:ring-offset-2 hover:ring-offset-background",
@@ -230,14 +309,17 @@ export function VariantSelector({ variants, selectedVariant, onVariantChange }: 
 								<div className="flex flex-wrap gap-3">
 									{group.options.map((option) => {
 										const isSelected = selectedValue === option.value;
+										const isAvailable = isOptionAvailable(group.label, option.value);
 
 										return (
 											<button
 												key={option.id}
 												type="button"
+												disabled={!isAvailable}
 												onClick={() => handleOptionSelect(group.label, option.value)}
 												className={cn(
 													"flex flex-col items-center rounded-lg border-2 px-6 py-3 transition-all duration-200",
+													!isAvailable && "cursor-not-allowed opacity-40",
 													isSelected
 														? "border-foreground bg-foreground text-primary-foreground"
 														: "border-border bg-background hover:border-muted-foreground",

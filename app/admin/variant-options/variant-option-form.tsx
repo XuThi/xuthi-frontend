@@ -49,6 +49,17 @@ interface VariantOptionFormProps {
     isEdit?: boolean;
 }
 
+function toSlugId(value: string): string {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "")
+}
+
 export default function VariantOptionForm({ initialData, isEdit }: VariantOptionFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -117,10 +128,7 @@ export default function VariantOptionForm({ initialData, isEdit }: VariantOption
                                     onChange={(e) => {
                                         field.onChange(e);
                                         if (!isEdit) {
-                                            const id = e.target.value
-                                                .toLowerCase()
-                                                .replace(/[^a-z0-9]+/g, "-")
-                                                .replace(/(^-|-$)+/g, "");
+                                            const id = toSlugId(e.target.value);
                                             form.setValue("id", id);
                                         }
                                     }}

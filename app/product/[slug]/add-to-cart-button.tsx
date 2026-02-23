@@ -45,8 +45,9 @@ export function AddToCartButton({
     // Manage selected variant with client-side state (not URL params)
     const [selectedVariant, setSelectedVariant] = useState<Variant | undefined>(
         () => {
-            // Auto-select first variant
-            return variants.length >= 1 ? variants[0] : undefined
+            // Auto-select first in-stock variant if available
+            const firstInStock = variants.find((variant) => variant.stockQuantity > 0)
+            return firstInStock ?? (variants.length >= 1 ? variants[0] : undefined)
         },
     )
 
@@ -67,6 +68,7 @@ export function AddToCartButton({
     const buttonText = useMemo(() => {
         if (isPending) return cartT.adding
         if (!selectedVariant) return cartT.selectOptions
+        if (selectedVariant.stockQuantity <= 0) return "Hết hàng"
         if (totalPrice) {
             return `${cartT.addToCart} — ${formatMoney({ amount: totalPrice, currency: CURRENCY, locale: LOCALE })}`
         }
@@ -137,7 +139,7 @@ export function AddToCartButton({
             <form onSubmit={handleSubmit}>
                 <button
                     type="submit"
-                    disabled={isPending || !selectedVariant}
+                    disabled={isPending || !selectedVariant || selectedVariant.stockQuantity <= 0}
                     className="w-full h-14 bg-foreground text-primary-foreground py-4 px-8 rounded-full text-base font-medium tracking-wide hover:bg-foreground/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {buttonText}

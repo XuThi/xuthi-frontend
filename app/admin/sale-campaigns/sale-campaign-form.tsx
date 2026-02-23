@@ -486,12 +486,12 @@ export default function SaleCampaignForm({
                     </h3>
 
                     {/* Add new product row */}
-                    <div className="grid grid-cols-1 gap-3 rounded-lg border border-blue-100 bg-blue-50/60 p-4 md:grid-cols-[2.2fr_1fr_1fr_auto] md:items-end">
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/40 p-4 md:grid-cols-[minmax(320px,2.2fr)_1fr_1fr_auto] md:items-end">
                         <Select
                             value={newItem.productId}
                             onValueChange={handleNewItemProductChange}
                         >
-                            <SelectTrigger className="min-w-0 bg-white">
+                            <SelectTrigger className="min-w-0 bg-background md:min-w-[320px]">
                                 <SelectValue placeholder="-- Chọn sản phẩm --" />
                             </SelectTrigger>
                             <SelectContent>
@@ -530,7 +530,7 @@ export default function SaleCampaignForm({
                         <Button
                             type="button"
                             onClick={handleAddPendingItem}
-                            className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 transition-colors"
+                            className="gap-1.5"
                         >
                             <Plus className="w-4 h-4" />
                             Thêm
@@ -549,9 +549,15 @@ export default function SaleCampaignForm({
                         {(existingItems.length > 0 ||
                             pendingAdds.length > 0) && (
                             <div className="hidden rounded-lg border bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[2.2fr_1fr_1fr_auto] md:gap-3">
-                                <span>Sản phẩm</span>
-                                <span>Giá sale</span>
-                                <span>Giá gốc</span>
+                                <span className="tracking-wide uppercase">
+                                    Sản phẩm
+                                </span>
+                                <span className="tracking-wide uppercase">
+                                    Giá sale
+                                </span>
+                                <span className="tracking-wide uppercase">
+                                    Giá gốc
+                                </span>
                                 <span className="text-right">Tác vụ</span>
                             </div>
                         )}
@@ -763,7 +769,7 @@ export default function SaleCampaignForm({
             <Button
                 type="submit"
                 disabled={loading}
-                className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8"
+                className="w-full px-8 md:w-auto"
             >
                 {loading
                     ? "Đang lưu..."
