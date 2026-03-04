@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { Hero } from "@/components/sections/hero"
 import { ProductGrid } from "@/components/sections/product-grid"
+import { CollectionCarousel } from "@/components/sections/collection-carousel"
 
 function ProductGridSkeleton() {
     return (
@@ -33,6 +34,7 @@ export default function Home() {
             <Suspense fallback={<ProductGridSkeleton />}>
                 <ProductGrid title="Sản phẩm nổi bật" limit={6} />
             </Suspense>
+            <CollectionCarousel />
         </main>
     )
 }

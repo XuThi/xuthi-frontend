@@ -1,7 +1,5 @@
 import type { NextConfig } from "next"
 
-const API_URL = process.env["services__api__http__0"]
-
 const nextConfig: NextConfig = {
     /* config options here */
     reactCompiler: true,

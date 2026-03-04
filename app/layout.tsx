@@ -28,6 +28,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
 	title: "XuThi Store",
 	description: "XuThi e-commerce store",
+	icons: {
+		icon: "https://res.cloudinary.com/dxlhncwp0/image/upload/v1769941817/logo_qlelti.svg",
+	},
 };
 
 async function getInitialCart() {

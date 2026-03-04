@@ -185,12 +185,13 @@ const ProductDetails = async ({
                             slug: product.slug,
                             images: product.images,
                         }}
+                        optionNames={product.optionNames}
                     />
                 </div>
             </div>
 
-            {/* Features Section (full width below) */}
-            <ProductFeatures />
+            {/* Features Section temporarily disabled */}
+            {/* <ProductFeatures /> */}
         </div>
     )
 }

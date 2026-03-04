@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Loader2 } from "lucide-react"
+import { Loader2, Upload, X } from "lucide-react"
 import { toast } from "sonner"
+import Image from "next/image"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -39,6 +40,13 @@ const categorySchema = z.object({
 
 type CategoryFormValues = z.infer<typeof categorySchema>
 
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000"
+
+function getParentId(id: string | null | undefined): string {
+    if (!id || id === EMPTY_GUID) return "none"
+    return id
+}
+
 interface CategoryFormProps {
     initialData?: Category
 }
@@ -47,7 +55,11 @@ export default function CategoryForm({ initialData }: CategoryFormProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [categories, setCategories] = useState<Category[]>([])
-
+    const [imageFile, setImageFile] = useState<File | null>(null)
+    const [imagePreview, setImagePreview] = useState<string | null>(
+        initialData?.image || null,
+    )
+    const fileInputRef = useRef<HTMLInputElement>(null)
     const form = useForm<CategoryFormValues>({
         resolver: zodResolver(categorySchema) as any,
         defaultValues: initialData
@@ -55,7 +67,7 @@ export default function CategoryForm({ initialData }: CategoryFormProps) {
                   name: initialData.name,
                   urlSlug: initialData.slug,
                   description: initialData.description || "",
-                  parentCategoryId: initialData.parentCategoryId || "none",
+                  parentCategoryId: getParentId(initialData.parentCategoryId),
                   sortOrder: initialData.sortOrder || 0,
               }
             : {
@@ -90,7 +102,9 @@ export default function CategoryForm({ initialData }: CategoryFormProps) {
                       name: initialData.name,
                       urlSlug: initialData.slug,
                       description: initialData.description || "",
-                      parentCategoryId: initialData.parentCategoryId || "none",
+                      parentCategoryId: getParentId(
+                          initialData.parentCategoryId,
+                      ),
                       sortOrder: initialData.sortOrder || 0,
                   }
                 : {
@@ -131,6 +145,7 @@ export default function CategoryForm({ initialData }: CategoryFormProps) {
             }
 
             const apiUrl = "/api/bff"
+            let categoryId = initialData?.id
 
             if (initialData) {
                 // Edit
@@ -162,6 +177,27 @@ export default function CategoryForm({ initialData }: CategoryFormProps) {
                         err.message ||
                             `Failed to create category: ${response.status}`,
                     )
+                }
+                const result = await response.json()
+                categoryId = result.id
+            }
+
+            // Upload image if selected
+            if (imageFile && categoryId) {
+                const formData = new FormData()
+                formData.append("image", imageFile)
+                const imgHeaders: HeadersInit = {}
+                if (token) imgHeaders["Authorization"] = `Bearer ${token}`
+                const imgRes = await fetch(
+                    `${apiUrl}/api/categories/${categoryId}/image`,
+                    {
+                        method: "POST",
+                        headers: imgHeaders,
+                        body: formData,
+                    },
+                )
+                if (!imgRes.ok) {
+                    toast.warning("Đã lưu danh mục nhưng upload ảnh thất bại")
                 }
             }
 
@@ -288,6 +324,57 @@ export default function CategoryForm({ initialData }: CategoryFormProps) {
                         </FormItem>
                     )}
                 />
+
+                {/* Image Upload */}
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                        Hình ảnh danh mục
+                    </label>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                                setImageFile(file)
+                                setImagePreview(URL.createObjectURL(file))
+                            }
+                        }}
+                    />
+                    {imagePreview ? (
+                        <div className="relative w-48 h-48 border rounded-lg overflow-hidden">
+                            <Image
+                                src={imagePreview}
+                                alt="Category preview"
+                                fill
+                                className="object-cover"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setImageFile(null)
+                                    setImagePreview(null)
+                                    if (fileInputRef.current)
+                                        fileInputRef.current.value = ""
+                                }}
+                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+                        >
+                            <Upload className="w-4 h-4" />
+                            Chọn hình ảnh
+                        </button>
+                    )}
+                </div>
 
                 <Button type="submit" disabled={loading}>
                     {loading && (

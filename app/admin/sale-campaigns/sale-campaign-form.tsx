@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,8 @@ import {
 import { api } from "@/lib/api/client"
 import type { Product, SaleCampaignDetail } from "@/lib/api/types"
 import { toast } from "sonner"
-import { Trash2, Undo2, Plus } from "lucide-react"
+import { Trash2, Undo2, Plus, Upload, X } from "lucide-react"
+import Image from "next/image"
 
 function extractApiErrorMessage(error: any) {
     const raw = error?.message || ""
@@ -70,6 +71,12 @@ export default function SaleCampaignForm({
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [products, setProducts] = useState<Product[]>([])
+    const [notifySubscribers, setNotifySubscribers] = useState(false)
+    const [bannerFile, setBannerFile] = useState<File | null>(null)
+    const [bannerPreview, setBannerPreview] = useState<string | null>(
+        initialData?.bannerImageUrl || null,
+    )
+    const bannerInputRef = useRef<HTMLInputElement>(null)
     const [formData, setFormData] = useState({
         name: initialData?.name || "",
         description: initialData?.description || "",
@@ -216,6 +223,7 @@ export default function SaleCampaignForm({
                 endDate: new Date(formData.endDate).toISOString(),
                 isActive: formData.isActive,
                 isFeatured: formData.isFeatured,
+                notifySubscribers: notifySubscribers,
             }
 
             let campaignId = initialData?.id
@@ -240,8 +248,33 @@ export default function SaleCampaignForm({
                 campaignId = (result as any).id || result
             }
 
-            // Batch operations for items (only when editing)
-            if (campaignId && initialData) {
+            // Batch operations for items
+            if (campaignId) {
+                // Upload banner if selected
+                if (bannerFile) {
+                    const token =
+                        typeof window !== "undefined"
+                            ? localStorage.getItem("xuthi_auth_token")
+                            : null
+                    const formDataUpload = new FormData()
+                    formDataUpload.append("image", bannerFile)
+                    const headers: HeadersInit = {}
+                    if (token) headers["Authorization"] = `Bearer ${token}`
+                    const bannerRes = await fetch(
+                        `/api/bff/api/sale-campaigns/${campaignId}/banner`,
+                        {
+                            method: "POST",
+                            headers,
+                            body: formDataUpload,
+                        },
+                    )
+                    if (!bannerRes.ok) {
+                        toast.warning(
+                            "Đã lưu campaign nhưng upload banner thất bại",
+                        )
+                    }
+                }
+
                 // 1. Delete marked items
                 for (const itemId of pendingDeletes) {
                     await api.saleCampaignRemoveItem(itemId)
@@ -378,17 +411,51 @@ export default function SaleCampaignForm({
             </div>
 
             <div>
-                <label className="text-sm font-medium">Banner URL</label>
-                <Input
-                    value={formData.bannerImageUrl}
-                    onChange={(e) =>
-                        setFormData((prev) => ({
-                            ...prev,
-                            bannerImageUrl: e.target.value,
-                        }))
-                    }
-                    placeholder="https://example.com/banner.jpg"
+                <label className="text-sm font-medium">Banner</label>
+                <input
+                    ref={bannerInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                            setBannerFile(file)
+                            setBannerPreview(URL.createObjectURL(file))
+                        }
+                    }}
                 />
+                {bannerPreview ? (
+                    <div className="relative mt-2 w-full aspect-[16/6] border rounded-lg overflow-hidden">
+                        <Image
+                            src={bannerPreview}
+                            alt="Banner preview"
+                            fill
+                            className="object-cover"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setBannerFile(null)
+                                setBannerPreview(null)
+                                if (bannerInputRef.current)
+                                    bannerInputRef.current.value = ""
+                            }}
+                            className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => bannerInputRef.current?.click()}
+                        className="mt-2 flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+                    >
+                        <Upload className="w-4 h-4" />
+                        Chọn hình banner
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -479,209 +546,119 @@ export default function SaleCampaignForm({
             </div>
 
             {/* Product Management Section */}
-            {initialData && (
-                <div className="rounded-lg border p-4 space-y-4">
-                    <h3 className="text-lg font-semibold">
-                        Sản phẩm trong campaign
-                    </h3>
+            <div className="rounded-lg border p-4 space-y-4">
+                <h3 className="text-lg font-semibold">
+                    Sản phẩm trong campaign
+                </h3>
 
-                    {/* Add new product row */}
-                    <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/40 p-4 md:grid-cols-[minmax(320px,2.2fr)_1fr_1fr_auto] md:items-end">
-                        <Select
-                            value={newItem.productId}
-                            onValueChange={handleNewItemProductChange}
-                        >
-                            <SelectTrigger className="min-w-0 bg-background md:min-w-[320px]">
-                                <SelectValue placeholder="-- Chọn sản phẩm --" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {availableProducts.map((product) => (
-                                    <SelectItem
-                                        key={product.id}
-                                        value={product.id}
+                {/* Add new product row */}
+                <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/40 p-4 md:grid-cols-[minmax(320px,2.2fr)_1fr_1fr_auto] md:items-end">
+                    <Select
+                        value={newItem.productId}
+                        onValueChange={handleNewItemProductChange}
+                    >
+                        <SelectTrigger className="min-w-0 bg-background md:min-w-[320px]">
+                            <SelectValue placeholder="-- Chọn sản phẩm --" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {availableProducts.map((product) => (
+                                <SelectItem key={product.id} value={product.id}>
+                                    {product.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Input
+                        placeholder="Giá sale *"
+                        data-no-spinner
+                        type="text"
+                        inputMode="numeric"
+                        value={formatVND(newItem.salePrice)}
+                        onChange={(e) =>
+                            setNewItem((prev) => ({
+                                ...prev,
+                                salePrice: parseVND(e.target.value),
+                            }))
+                        }
+                        className="min-w-0"
+                    />
+                    <Input
+                        placeholder="Giá gốc"
+                        type="text"
+                        value={formatVND(newItem.originalPrice)}
+                        readOnly
+                        className="min-w-0 bg-gray-100 text-gray-600"
+                        title="Tự động lấy từ giá sản phẩm"
+                    />
+                    <Button
+                        type="button"
+                        onClick={handleAddPendingItem}
+                        className="gap-1.5"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Thêm
+                    </Button>
+                </div>
+
+                {/* Existing + pending items list */}
+                <div className="space-y-2">
+                    {existingItems.length === 0 && pendingAdds.length === 0 && (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                            Chưa có sản phẩm nào trong campaign.
+                        </p>
+                    )}
+
+                    {(existingItems.length > 0 || pendingAdds.length > 0) && (
+                        <div className="hidden rounded-lg border bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[2.2fr_1fr_1fr_auto] md:gap-3">
+                            <span className="tracking-wide uppercase">
+                                Sản phẩm
+                            </span>
+                            <span className="tracking-wide uppercase">
+                                Giá sale
+                            </span>
+                            <span className="tracking-wide uppercase">
+                                Giá gốc
+                            </span>
+                            <span className="text-right">Tác vụ</span>
+                        </div>
+                    )}
+
+                    {existingItems.map((item) => {
+                        const isDeleted = pendingDeletes.includes(item.id)
+                        const product = products.find(
+                            (p) => p.id === item.productId,
+                        )
+
+                        return (
+                            <div
+                                key={item.id}
+                                className={`grid grid-cols-1 gap-3 rounded-lg border p-3 transition-all md:grid-cols-[2.2fr_1fr_1fr_auto] md:items-center ${
+                                    isDeleted
+                                        ? "opacity-50 bg-red-50/50 border-red-200"
+                                        : item.dirty
+                                          ? "bg-yellow-50/50 border-yellow-200"
+                                          : "bg-white hover:bg-gray-50/50"
+                                }`}
+                            >
+                                <div className="min-w-0">
+                                    <div
+                                        className={`font-medium text-sm ${isDeleted ? "line-through text-gray-400" : ""}`}
                                     >
-                                        {product.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Input
-                            placeholder="Giá sale *"
-                            data-no-spinner
-                            type="text"
-                            inputMode="numeric"
-                            value={formatVND(newItem.salePrice)}
-                            onChange={(e) =>
-                                setNewItem((prev) => ({
-                                    ...prev,
-                                    salePrice: parseVND(e.target.value),
-                                }))
-                            }
-                            className="min-w-0"
-                        />
-                        <Input
-                            placeholder="Giá gốc"
-                            type="text"
-                            value={formatVND(newItem.originalPrice)}
-                            readOnly
-                            className="min-w-0 bg-gray-100 text-gray-600"
-                            title="Tự động lấy từ giá sản phẩm"
-                        />
-                        <Button
-                            type="button"
-                            onClick={handleAddPendingItem}
-                            className="gap-1.5"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Thêm
-                        </Button>
-                    </div>
-
-                    {/* Existing + pending items list */}
-                    <div className="space-y-2">
-                        {existingItems.length === 0 &&
-                            pendingAdds.length === 0 && (
-                                <p className="text-sm text-muted-foreground py-4 text-center">
-                                    Chưa có sản phẩm nào trong campaign.
-                                </p>
-                            )}
-
-                        {(existingItems.length > 0 ||
-                            pendingAdds.length > 0) && (
-                            <div className="hidden rounded-lg border bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[2.2fr_1fr_1fr_auto] md:gap-3">
-                                <span className="tracking-wide uppercase">
-                                    Sản phẩm
-                                </span>
-                                <span className="tracking-wide uppercase">
-                                    Giá sale
-                                </span>
-                                <span className="tracking-wide uppercase">
-                                    Giá gốc
-                                </span>
-                                <span className="text-right">Tác vụ</span>
-                            </div>
-                        )}
-
-                        {existingItems.map((item) => {
-                            const isDeleted = pendingDeletes.includes(item.id)
-                            const product = products.find(
-                                (p) => p.id === item.productId,
-                            )
-
-                            return (
-                                <div
-                                    key={item.id}
-                                    className={`grid grid-cols-1 gap-3 rounded-lg border p-3 transition-all md:grid-cols-[2.2fr_1fr_1fr_auto] md:items-center ${
-                                        isDeleted
-                                            ? "opacity-50 bg-red-50/50 border-red-200"
-                                            : item.dirty
-                                              ? "bg-yellow-50/50 border-yellow-200"
-                                              : "bg-white hover:bg-gray-50/50"
-                                    }`}
-                                >
-                                    <div className="min-w-0">
-                                        <div
-                                            className={`font-medium text-sm ${isDeleted ? "line-through text-gray-400" : ""}`}
-                                        >
-                                            {product?.name || item.productId}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground flex gap-2 items-center">
-                                            <span>
-                                                Đã bán: {item.soldQuantity}
+                                        {product?.name || item.productId}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground flex gap-2 items-center">
+                                        <span>Đã bán: {item.soldQuantity}</span>
+                                        {item.dirty && !isDeleted && (
+                                            <span className="text-yellow-600 font-medium">
+                                                (đã sửa)
                                             </span>
-                                            {item.dirty && !isDeleted && (
-                                                <span className="text-yellow-600 font-medium">
-                                                    (đã sửa)
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <label className="text-xs text-muted-foreground md:hidden">
-                                            Giá sale
-                                        </label>
-                                        <Input
-                                            data-no-spinner
-                                            type="text"
-                                            inputMode="numeric"
-                                            placeholder="Giá sale"
-                                            value={formatVND(item.salePrice)}
-                                            onChange={(e) =>
-                                                handleExistingItemEdit(
-                                                    item.id,
-                                                    "salePrice",
-                                                    parseVND(e.target.value),
-                                                )
-                                            }
-                                            disabled={isDeleted}
-                                            className={
-                                                isDeleted ? "line-through" : ""
-                                            }
-                                        />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <label className="text-xs text-muted-foreground md:hidden">
-                                            Giá gốc
-                                        </label>
-                                        <Input
-                                            type="text"
-                                            placeholder="Giá gốc"
-                                            value={formatVND(
-                                                item.originalPrice,
-                                            )}
-                                            readOnly
-                                            className="bg-gray-100 text-gray-600"
-                                            title="Giá gốc từ sản phẩm"
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-end">
-                                        {isDeleted ? (
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                    handleUndoDelete(item.id)
-                                                }
-                                                className="gap-1.5 hover:bg-gray-100 transition-colors"
-                                            >
-                                                <Undo2 className="w-4 h-4" />
-                                                Hoàn tác
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() =>
-                                                    handleMarkForDelete(item.id)
-                                                }
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
-                                                title="Xóa sản phẩm"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
                                         )}
                                     </div>
                                 </div>
-                            )
-                        })}
-
-                        {/* Pending adds */}
-                        {pendingAdds.map((item) => (
-                            <div
-                                key={item.tempId}
-                                className="grid grid-cols-1 gap-3 rounded-lg border border-green-200 bg-green-50/50 p-3 md:grid-cols-[2.2fr_1fr_1fr_auto] md:items-center"
-                            >
                                 <div className="min-w-0">
-                                    <div className="font-medium text-sm">
-                                        {item.productName}
-                                    </div>
-                                    <div className="text-green-600 text-xs font-medium">
-                                        (mới thêm - chưa lưu)
-                                    </div>
-                                </div>
-                                <div className="min-w-0">
+                                    <label className="text-xs text-muted-foreground md:hidden">
+                                        Giá sale
+                                    </label>
                                     <Input
                                         data-no-spinner
                                         type="text"
@@ -689,94 +666,181 @@ export default function SaleCampaignForm({
                                         placeholder="Giá sale"
                                         value={formatVND(item.salePrice)}
                                         onChange={(e) =>
-                                            setPendingAdds((prev) =>
-                                                prev.map((p) =>
-                                                    p.tempId === item.tempId
-                                                        ? {
-                                                              ...p,
-                                                              salePrice:
-                                                                  parseVND(
-                                                                      e.target
-                                                                          .value,
-                                                                  ),
-                                                          }
-                                                        : p,
-                                                ),
+                                            handleExistingItemEdit(
+                                                item.id,
+                                                "salePrice",
+                                                parseVND(e.target.value),
                                             )
+                                        }
+                                        disabled={isDeleted}
+                                        className={
+                                            isDeleted ? "line-through" : ""
                                         }
                                     />
                                 </div>
                                 <div className="min-w-0">
+                                    <label className="text-xs text-muted-foreground md:hidden">
+                                        Giá gốc
+                                    </label>
                                     <Input
                                         type="text"
+                                        placeholder="Giá gốc"
                                         value={formatVND(item.originalPrice)}
                                         readOnly
                                         className="bg-gray-100 text-gray-600"
+                                        title="Giá gốc từ sản phẩm"
                                     />
                                 </div>
                                 <div className="flex items-center justify-end">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() =>
-                                            handleRemovePendingAdd(item.tempId)
-                                        }
-                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
-                                        title="Bỏ sản phẩm"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
+                                    {isDeleted ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleUndoDelete(item.id)
+                                            }
+                                            className="gap-1.5 hover:bg-gray-100 transition-colors"
+                                        >
+                                            <Undo2 className="w-4 h-4" />
+                                            Hoàn tác
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() =>
+                                                handleMarkForDelete(item.id)
+                                            }
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                                            title="Xóa sản phẩm"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        )
+                    })}
 
-                    {/* Summary of pending changes */}
-                    {(pendingAdds.length > 0 ||
-                        pendingDeletes.length > 0 ||
-                        existingItems.some((i) => i.dirty)) && (
-                        <div className="text-sm text-muted-foreground bg-gray-50 p-3 rounded-lg border flex items-center gap-3 flex-wrap">
-                            <span className="font-medium">
-                                Thay đổi chưa lưu:
-                            </span>
-                            {pendingAdds.length > 0 && (
-                                <span className="inline-flex items-center gap-1 text-green-700 bg-green-100 px-2 py-0.5 rounded-full text-xs font-medium">
-                                    +{pendingAdds.length} thêm
-                                </span>
-                            )}
-                            {existingItems.filter((i) => i.dirty).length >
-                                0 && (
-                                <span className="inline-flex items-center gap-1 text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full text-xs font-medium">
-                                    ~
-                                    {
-                                        existingItems.filter((i) => i.dirty)
-                                            .length
-                                    }{" "}
-                                    sửa
-                                </span>
-                            )}
-                            {pendingDeletes.length > 0 && (
-                                <span className="inline-flex items-center gap-1 text-red-700 bg-red-100 px-2 py-0.5 rounded-full text-xs font-medium">
-                                    -{pendingDeletes.length} xóa
-                                </span>
-                            )}
+                    {/* Pending adds */}
+                    {pendingAdds.map((item) => (
+                        <div
+                            key={item.tempId}
+                            className="grid grid-cols-1 gap-3 rounded-lg border border-green-200 bg-green-50/50 p-3 md:grid-cols-[2.2fr_1fr_1fr_auto] md:items-center"
+                        >
+                            <div className="min-w-0">
+                                <div className="font-medium text-sm">
+                                    {item.productName}
+                                </div>
+                                <div className="text-green-600 text-xs font-medium">
+                                    (mới thêm - chưa lưu)
+                                </div>
+                            </div>
+                            <div className="min-w-0">
+                                <Input
+                                    data-no-spinner
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="Giá sale"
+                                    value={formatVND(item.salePrice)}
+                                    onChange={(e) =>
+                                        setPendingAdds((prev) =>
+                                            prev.map((p) =>
+                                                p.tempId === item.tempId
+                                                    ? {
+                                                          ...p,
+                                                          salePrice: parseVND(
+                                                              e.target.value,
+                                                          ),
+                                                      }
+                                                    : p,
+                                            ),
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="min-w-0">
+                                <Input
+                                    type="text"
+                                    value={formatVND(item.originalPrice)}
+                                    readOnly
+                                    className="bg-gray-100 text-gray-600"
+                                />
+                            </div>
+                            <div className="flex items-center justify-end">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                        handleRemovePendingAdd(item.tempId)
+                                    }
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                                    title="Bỏ sản phẩm"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </div>
                         </div>
-                    )}
+                    ))}
                 </div>
-            )}
 
-            <Button
-                type="submit"
-                disabled={loading}
-                className="w-full px-8 md:w-auto"
-            >
-                {loading
-                    ? "Đang lưu..."
-                    : initialData
-                      ? "Lưu tất cả thay đổi"
-                      : "Tạo campaign"}
-            </Button>
+                {/* Summary of pending changes */}
+                {(pendingAdds.length > 0 ||
+                    pendingDeletes.length > 0 ||
+                    existingItems.some((i) => i.dirty)) && (
+                    <div className="text-sm text-muted-foreground bg-gray-50 p-3 rounded-lg border flex items-center gap-3 flex-wrap">
+                        <span className="font-medium">Thay đổi chưa lưu:</span>
+                        {pendingAdds.length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-green-700 bg-green-100 px-2 py-0.5 rounded-full text-xs font-medium">
+                                +{pendingAdds.length} thêm
+                            </span>
+                        )}
+                        {existingItems.filter((i) => i.dirty).length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full text-xs font-medium">
+                                ~{existingItems.filter((i) => i.dirty).length}{" "}
+                                sửa
+                            </span>
+                        )}
+                        {pendingDeletes.length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-red-700 bg-red-100 px-2 py-0.5 rounded-full text-xs font-medium">
+                                -{pendingDeletes.length} xóa
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <div className="flex items-center gap-6 flex-wrap">
+                <Button
+                    type="submit"
+                    disabled={loading}
+                    className="px-8 md:w-auto"
+                >
+                    {loading
+                        ? "Đang lưu..."
+                        : initialData
+                          ? "Lưu tất cả thay đổi"
+                          : "Tạo campaign"}
+                </Button>
+                {!initialData && (
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={notifySubscribers}
+                            onChange={(e) =>
+                                setNotifySubscribers(e.target.checked)
+                            }
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-muted-foreground">
+                            Gửi email thông báo đến người đăng ký nhận tin
+                        </span>
+                    </label>
+                )}
+            </div>
         </form>
     )
 }

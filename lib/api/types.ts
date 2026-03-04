@@ -28,6 +28,7 @@ export interface Product {
     brandName?: string
     isActive: boolean
     variants: ProductVariant[]
+    optionNames?: Record<string, string>
     createdAt: string
     updatedAt?: string
 }
@@ -155,6 +156,8 @@ export interface CustomerDetail extends Customer {
     gender?: string
     loyaltyPoints: number
     tierDiscountPercentage: number
+    acceptsMarketing: boolean
+    acceptsSms: boolean
     addresses: Address[]
 }
 

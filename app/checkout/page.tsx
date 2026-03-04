@@ -1,7 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { useCart } from "@/app/cart/cart-context"
 import { clearCartAction } from "@/app/cart/actions"
@@ -16,6 +16,7 @@ import {
     Tag,
     Loader2,
     X,
+    Bell,
 } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api/client"
@@ -64,6 +65,7 @@ export default function CheckoutPage() {
     const { user, isAuthenticated, isLoading, token } = useAuth()
     const { cart, clearCart } = useCart()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [mounted, setMounted] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [orderComplete, setOrderComplete] = useState<{
@@ -86,6 +88,7 @@ export default function CheckoutPage() {
     const [customerProfileId, setCustomerProfileId] = useState<string | null>(
         null,
     )
+    const [alreadySubscribed, setAlreadySubscribed] = useState(false)
 
     // Voucher state
     const [voucherCode, setVoucherCode] = useState("")
@@ -96,6 +99,7 @@ export default function CheckoutPage() {
     } | null>(null)
     const [voucherError, setVoucherError] = useState<string | null>(null)
     const [applyingVoucher, setApplyingVoucher] = useState(false)
+    const [subscribeNewsletter, setSubscribeNewsletter] = useState(false)
 
     const [formData, setFormData] = useState({
         fullName: "",
@@ -110,6 +114,19 @@ export default function CheckoutPage() {
         notes: "",
         paymentMethod: "cod",
     })
+
+    // Handle PayOS return
+    useEffect(() => {
+        const payosStatus = searchParams.get("payos")
+        if (payosStatus === "success") {
+            // PayOS payment completed - show a message and redirect to orders
+            router.replace("/orders")
+        } else if (payosStatus === "cancel") {
+            setError("Bạn đã hủy thanh toán. Vui lòng thử lại.")
+            // Clean URL
+            router.replace("/checkout")
+        }
+    }, [searchParams, router])
 
     // Fetch provinces on mount
     useEffect(() => {
@@ -300,6 +317,9 @@ export default function CheckoutPage() {
                 )
                 setSavedAddresses(nextAddresses)
                 setCustomerProfileId(customer?.id ?? null)
+                if (customer?.acceptsMarketing) {
+                    setAlreadySubscribed(true)
+                }
 
                 const defaultAddress = nextAddresses.find((a) => a.isDefault)
                 if (defaultAddress) {
@@ -574,13 +594,15 @@ export default function CheckoutPage() {
                 shippingDistrict: formData.districtName || formData.district,
                 shippingWard: formData.wardName || formData.ward || "N/A",
                 shippingNote: formData.notes || null,
-                paymentMethod: formData.paymentMethod === "cod" ? 0 : 1,
+                paymentMethod: formData.paymentMethod === "cod" ? 1 : 3,
                 items: cart.items.map((item) => ({
                     productId: item.productId,
                     variantId: item.variantId,
                     quantity: item.quantity,
                 })),
                 voucherCode: voucherApplied?.code || null,
+                returnUrl: `${window.location.origin}/checkout?payos=success`,
+                cancelUrl: `${window.location.origin}/checkout?payos=cancel`,
             }
 
             const response = await fetch(`${API_URL}/api/orders/checkout`, {
@@ -595,6 +617,22 @@ export default function CheckoutPage() {
             if (response.ok) {
                 const result = await response.json()
 
+                // Subscribe to newsletter if checked (fire-and-forget)
+                if (subscribeNewsletter && customerProfileId) {
+                    api.customerUpdate({
+                        customerId: customerProfileId,
+                        acceptsMarketing: true,
+                    }).catch(() => {})
+                }
+
+                // COD: show success screen FIRST, then clear cart in background
+                if (!result.paymentUrl) {
+                    setOrderComplete({
+                        orderNumber: result.orderNumber,
+                        total: result.total,
+                    })
+                }
+
                 // Clear the cart via backend endpoint
                 try {
                     const cartId = cart.id
@@ -608,15 +646,15 @@ export default function CheckoutPage() {
                     console.warn("Failed to clear cart on backend:", clearErr)
                 }
 
-                // Clear cart cookie + backend cart, then local state
+                // Clear cart cookie + local state
                 await clearCartAction()
                 clearCart()
-                router.refresh()
 
-                setOrderComplete({
-                    orderNumber: result.orderNumber,
-                    total: result.total,
-                })
+                // PayOS/bank transfer: redirect immediately
+                if (result.paymentUrl) {
+                    window.location.href = result.paymentUrl
+                    return
+                }
             } else {
                 const errorData = await response.json().catch(() => ({}))
                 setError(
@@ -1013,6 +1051,34 @@ export default function CheckoutPage() {
                                 </label>
                             </div>
                         </div>
+
+                        {/* Newsletter Subscription */}
+                        {isAuthenticated && !alreadySubscribed && (
+                            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={subscribeNewsletter}
+                                        onChange={(e) =>
+                                            setSubscribeNewsletter(
+                                                e.target.checked,
+                                            )
+                                        }
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <Bell className="w-5 h-5 text-blue-600 shrink-0" />
+                                    <div>
+                                        <span className="text-sm font-medium">
+                                            Nhận thông tin khuyến mãi
+                                        </span>
+                                        <p className="text-xs text-gray-500">
+                                            Nhận email khi có sản phẩm mới hoặc
+                                            chương trình sale
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+                        )}
 
                         <Button
                             type="submit"

@@ -17,7 +17,7 @@ export default function AboutPage() {
         sự khó chịu mỗi khi mang giày cao gót của chị em phụ nữ.
       </blockquote>
 
-      <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden mb-10">
+      <div className="relative w-full h-fit aspect-video rounded-2xl overflow-hidden mb-10">
         <Image
           src="https://firebasestorage.googleapis.com/v0/b/xuthi-6f838.appspot.com/o/box1.jpg?alt=media&token=1ea1632a-bd28-4752-961e-81ebc20d1aa7"
           alt="XuThi Store"

@@ -31,24 +31,40 @@ type AddToCartButtonProps = {
             originalPrice?: number | null
         } | null
     }
+    optionNames?: Record<string, string>
 }
 
 export function AddToCartButton({
     variants,
     product,
     salePricing,
+    optionNames,
 }: AddToCartButtonProps) {
     const [quantity, setQuantity] = useState(1)
     const [isPending, startTransition] = useTransition()
-    const { openCart, dispatch } = useCart()
+    const { openCart, dispatch, items } = useCart()
 
     // Manage selected variant with client-side state (not URL params)
     const [selectedVariant, setSelectedVariant] = useState<Variant | undefined>(
         () => {
             // Auto-select first in-stock variant if available
-            const firstInStock = variants.find((variant) => variant.stockQuantity > 0)
-            return firstInStock ?? (variants.length >= 1 ? variants[0] : undefined)
+            const firstInStock = variants.find(
+                (variant) => variant.stockQuantity > 0,
+            )
+            return (
+                firstInStock ?? (variants.length >= 1 ? variants[0] : undefined)
+            )
         },
+    )
+
+    // Calculate effective max: stock minus what's already in cart for this variant
+    const existingCartQty = selectedVariant
+        ? (items.find((item) => item.variantId === selectedVariant.id)
+              ?.quantity ?? 0)
+        : 0
+    const effectiveMax = Math.max(
+        0,
+        (selectedVariant?.stockQuantity ?? 0) - existingCartQty,
     )
 
     const saleMatch = selectedVariant?.id
@@ -61,7 +77,7 @@ export function AddToCartButton({
         : null
     const variantDescription = selectedVariant?.attributes
         ? Object.entries(selectedVariant.attributes)
-              .map(([key, value]) => `${key}: ${value}`)
+              .map(([key, value]) => `${optionNames?.[key] ?? key}: ${value}`)
               .join(", ")
         : selectedVariant?.name
 
@@ -69,14 +85,17 @@ export function AddToCartButton({
         if (isPending) return cartT.adding
         if (!selectedVariant) return cartT.selectOptions
         if (selectedVariant.stockQuantity <= 0) return "Hết hàng"
+        if (effectiveMax <= 0) return "Đã đạt giới hạn tồn kho"
         if (totalPrice) {
             return `${cartT.addToCart} — ${formatMoney({ amount: totalPrice, currency: CURRENCY, locale: LOCALE })}`
         }
         return cartT.addToCart
-    }, [isPending, selectedVariant, totalPrice])
+    }, [isPending, selectedVariant, totalPrice, effectiveMax])
 
     const handleVariantChange = (variant: Variant | undefined) => {
         setSelectedVariant(variant)
+        // Reset quantity to 1 when changing variant (new effective max may be different)
+        setQuantity(1)
     }
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -108,8 +127,8 @@ export function AddToCartButton({
                         (activeSale?.salePrice ?? selectedVariant.price) *
                         quantity,
                     addedAt: new Date().toISOString(),
-                    availableStock: 10,
-                    isInStock: true,
+                    availableStock: selectedVariant.stockQuantity,
+                    isInStock: selectedVariant.stockQuantity > 0,
                     isOnSale: !!activeSale,
                 },
             })
@@ -127,19 +146,26 @@ export function AddToCartButton({
                     variants={variants}
                     selectedVariant={selectedVariant}
                     onVariantChange={handleVariantChange}
+                    optionNames={optionNames}
                 />
             )}
 
             <QuantitySelector
                 quantity={quantity}
                 onQuantityChange={setQuantity}
+                max={effectiveMax}
                 disabled={isPending}
             />
 
             <form onSubmit={handleSubmit}>
                 <button
                     type="submit"
-                    disabled={isPending || !selectedVariant || selectedVariant.stockQuantity <= 0}
+                    disabled={
+                        isPending ||
+                        !selectedVariant ||
+                        selectedVariant.stockQuantity <= 0 ||
+                        effectiveMax <= 0
+                    }
                     className="w-full h-14 bg-foreground text-primary-foreground py-4 px-8 rounded-full text-base font-medium tracking-wide hover:bg-foreground/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {buttonText}

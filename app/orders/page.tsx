@@ -336,9 +336,26 @@ export default function OrdersPage() {
                                             </p>
                                             <p className="text-sm text-gray-500">
                                                 Thanh toán:{" "}
-                                                {order.paymentMethod === "0"
+                                                {order.paymentMethod ===
+                                                "CashOnDelivery"
                                                     ? "COD"
                                                     : "Chuyển khoản"}
+                                                {order.paymentMethod !==
+                                                    "CashOnDelivery" &&
+                                                    order.paymentStatus ===
+                                                        "Pending" && (
+                                                        <span className="ml-2 text-amber-600 font-medium">
+                                                            (Chờ thanh toán)
+                                                        </span>
+                                                    )}
+                                                {order.paymentMethod !==
+                                                    "CashOnDelivery" &&
+                                                    order.paymentStatus ===
+                                                        "Paid" && (
+                                                        <span className="ml-2 text-green-600 font-medium">
+                                                            (Đã thanh toán)
+                                                        </span>
+                                                    )}
                                             </p>
                                         </div>
                                         <div className="text-right">

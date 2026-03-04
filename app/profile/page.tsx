@@ -12,7 +12,13 @@ import {
     CheckCircle,
     Send,
     Loader2,
+    Bell,
+    BellOff,
+    Lock,
+    Eye,
+    EyeOff,
 } from "lucide-react"
+import { toast } from "sonner"
 import { api } from "@/lib/api/client"
 import type { Address } from "@/lib/api/types"
 
@@ -51,6 +57,19 @@ export default function ProfilePage() {
     const [savingAddress, setSavingAddress] = useState(false)
     const [editingAddress, setEditingAddress] = useState<Address | null>(null)
     const [showAddressForm, setShowAddressForm] = useState(false)
+    const [acceptsMarketing, setAcceptsMarketing] = useState(false)
+    const [togglingNewsletter, setTogglingNewsletter] = useState(false)
+
+    // Change password state
+    const [showChangePassword, setShowChangePassword] = useState(false)
+    const [currentPassword, setCurrentPassword] = useState("")
+    const [newPassword, setNewPassword] = useState("")
+    const [confirmNewPassword, setConfirmNewPassword] = useState("")
+    const [showPasswords, setShowPasswords] = useState(false)
+    const [changingPassword, setChangingPassword] = useState(false)
+    const [passwordError, setPasswordError] = useState<string | null>(null)
+    const [passwordSuccess, setPasswordSuccess] = useState(false)
+
     const [addressForm, setAddressForm] = useState({
         label: "",
         recipientName: "",
@@ -178,6 +197,7 @@ export default function ProfilePage() {
                 return
             }
             setCustomerId(customer.id)
+            setAcceptsMarketing(customer.acceptsMarketing ?? false)
             // Sort: default address first
             const sorted = [...(customer.addresses ?? [])].sort((a, b) => {
                 if (a.isDefault && !b.isDefault) return -1
@@ -209,10 +229,56 @@ export default function ProfilePage() {
             setResendSuccess(true)
             setTimeout(() => setResendSuccess(false), 5000)
         } else {
-            alert(result.error || "Có lỗi xảy ra")
+            toast.error(result.error || "Có lỗi xảy ra")
         }
 
         setResending(false)
+    }
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setPasswordError(null)
+        setPasswordSuccess(false)
+
+        if (newPassword !== confirmNewPassword) {
+            setPasswordError("Mật khẩu xác nhận không khớp.")
+            return
+        }
+
+        if (newPassword.length < 6) {
+            setPasswordError("Mật khẩu mới phải có ít nhất 6 ký tự.")
+            return
+        }
+
+        setChangingPassword(true)
+        try {
+            const token = localStorage.getItem("xuthi_auth_token")
+            const response = await fetch("/api/bff/api/auth/change-password", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ currentPassword, newPassword }),
+            })
+
+            if (response.ok) {
+                setPasswordSuccess(true)
+                setCurrentPassword("")
+                setNewPassword("")
+                setConfirmNewPassword("")
+                setShowChangePassword(false)
+                setTimeout(() => setPasswordSuccess(false), 5000)
+            } else {
+                const data = await response.json().catch(() => ({}))
+                const msg = data.error || data.title || "Đổi mật khẩu thất bại."
+                setPasswordError(msg)
+            }
+        } catch {
+            setPasswordError("Lỗi kết nối. Vui lòng thử lại.")
+        } finally {
+            setChangingPassword(false)
+        }
     }
 
     if (!mounted || isLoading) {
@@ -296,7 +362,7 @@ export default function ProfilePage() {
         if (!confirm("Bạn chắc chắn muốn xóa địa chỉ này?")) return
         const success = await api.addressDelete({ customerId, addressId })
         if (!success) {
-            alert("Xóa địa chỉ thất bại.")
+            toast.error("Xóa địa chỉ thất bại.")
             return
         }
         await refreshAddresses()
@@ -306,7 +372,7 @@ export default function ProfilePage() {
         if (!customerId) return
         const success = await api.addressSetDefault({ customerId, addressId })
         if (!success) {
-            alert("Không thể đặt địa chỉ mặc định.")
+            toast.error("Không thể đặt địa chỉ mặc định.")
             return
         }
 
@@ -507,6 +573,228 @@ export default function ProfilePage() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Newsletter Subscription Toggle */}
+                        {customerId && (
+                            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={acceptsMarketing}
+                                            onChange={(e) =>
+                                                setAcceptsMarketing(
+                                                    e.target.checked,
+                                                )
+                                            }
+                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        {acceptsMarketing ? (
+                                            <Bell className="w-5 h-5 text-blue-600" />
+                                        ) : (
+                                            <BellOff className="w-5 h-5 text-gray-400" />
+                                        )}
+                                        <div>
+                                            <p className="text-sm font-medium">
+                                                Nhận thông tin khuyến mãi
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {acceptsMarketing
+                                                    ? "Bạn sẽ nhận email khi có sản phẩm mới hoặc chương trình sale"
+                                                    : "Bật để nhận thông báo sản phẩm mới và khuyến mãi"}
+                                            </p>
+                                        </div>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        disabled={togglingNewsletter}
+                                        onClick={async () => {
+                                            if (!customerId) return
+                                            setTogglingNewsletter(true)
+                                            const ok = await api.customerUpdate(
+                                                {
+                                                    customerId,
+                                                    acceptsMarketing,
+                                                },
+                                            )
+                                            setTogglingNewsletter(false)
+                                            if (ok) {
+                                                toast.success(
+                                                    "Đã lưu cài đặt nhận thông tin khuyến mãi!",
+                                                )
+                                            } else {
+                                                toast.error(
+                                                    "Lưu cài đặt thất bại. Vui lòng thử lại.",
+                                                )
+                                            }
+                                        }}
+                                        className="px-4 py-1.5 text-sm font-medium bg-black text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50"
+                                    >
+                                        {togglingNewsletter
+                                            ? "Đang lưu..."
+                                            : "Lưu"}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Change Password Section */}
+                    <div className="border-t pt-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                                <Lock className="w-5 h-5" />
+                                Bảo mật
+                            </h3>
+                        </div>
+
+                        {passwordSuccess && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                <span className="text-sm text-green-800">
+                                    Đổi mật khẩu thành công!
+                                </span>
+                            </div>
+                        )}
+
+                        {!showChangePassword ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowChangePassword(true)}
+                            >
+                                <Lock className="w-4 h-4 mr-2" />
+                                Đổi mật khẩu
+                            </Button>
+                        ) : (
+                            <form
+                                onSubmit={handleChangePassword}
+                                className="space-y-4 max-w-md"
+                            >
+                                {passwordError && (
+                                    <div className="rounded-md bg-red-50 border border-red-200 p-3">
+                                        <div className="text-sm text-red-700">
+                                            {passwordError}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Mật khẩu hiện tại
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type={
+                                                showPasswords
+                                                    ? "text"
+                                                    : "password"
+                                            }
+                                            value={currentPassword}
+                                            onChange={(e) =>
+                                                setCurrentPassword(
+                                                    e.target.value,
+                                                )
+                                            }
+                                            required
+                                            className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="Nhập mật khẩu hiện tại"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowPasswords(!showPasswords)
+                                            }
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                                        >
+                                            {showPasswords ? (
+                                                <EyeOff className="h-4 w-4 text-gray-400" />
+                                            ) : (
+                                                <Eye className="h-4 w-4 text-gray-400" />
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Mật khẩu mới
+                                    </label>
+                                    <input
+                                        type={
+                                            showPasswords ? "text" : "password"
+                                        }
+                                        value={newPassword}
+                                        onChange={(e) =>
+                                            setNewPassword(e.target.value)
+                                        }
+                                        required
+                                        minLength={6}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Ít nhất 6 ký tự"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Xác nhận mật khẩu mới
+                                    </label>
+                                    <input
+                                        type={
+                                            showPasswords ? "text" : "password"
+                                        }
+                                        value={confirmNewPassword}
+                                        onChange={(e) =>
+                                            setConfirmNewPassword(
+                                                e.target.value,
+                                            )
+                                        }
+                                        required
+                                        minLength={6}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Nhập lại mật khẩu mới"
+                                    />
+                                    {confirmNewPassword &&
+                                        newPassword !== confirmNewPassword && (
+                                            <p className="mt-1 text-xs text-red-600">
+                                                Mật khẩu xác nhận không khớp.
+                                            </p>
+                                        )}
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        type="submit"
+                                        disabled={
+                                            changingPassword ||
+                                            newPassword !== confirmNewPassword
+                                        }
+                                    >
+                                        {changingPassword ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                Đang xử lý...
+                                            </>
+                                        ) : (
+                                            "Đổi mật khẩu"
+                                        )}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setShowChangePassword(false)
+                                            setCurrentPassword("")
+                                            setNewPassword("")
+                                            setConfirmNewPassword("")
+                                            setPasswordError(null)
+                                        }}
+                                    >
+                                        Hủy
+                                    </Button>
+                                </div>
+                            </form>
+                        )}
                     </div>
 
                     <div className="border-t pt-6">

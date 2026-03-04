@@ -49,7 +49,7 @@ export async function ProductGrid({
     return (
         <section
             id="products"
-            className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24"
+            className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16"
         >
             <div className="flex items-end justify-between mb-12">
                 <div>
@@ -201,7 +201,7 @@ export async function ProductGrid({
                         >
                             <div className="relative aspect-square bg-secondary rounded-2xl overflow-hidden mb-4">
                                 {maxDiscountPercent && (
-                                    <span className="absolute left-3 top-3 z-10 rounded-full bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground">
+                                    <span className="absolute left-3 top-3 z-10 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white shadow-sm">
                                         -{maxDiscountPercent}%
                                     </span>
                                 )}

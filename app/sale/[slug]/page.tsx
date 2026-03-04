@@ -3,9 +3,7 @@ import { notFound } from "next/navigation"
 import Image from "next/image"
 import { commerce } from "@/lib/commerce"
 import type { Product, SaleCampaignDetail } from "@/lib/api/types"
-import { CURRENCY, LOCALE } from "@/lib/constants"
-import { formatMoney } from "@/lib/money"
-import { AppLink } from "@/components/app-link"
+import { ProductGrid } from "@/components/sections/product-grid"
 
 export default async function SaleCampaignPage(props: {
     params: Promise<{ slug: string }>
@@ -30,7 +28,7 @@ export default async function SaleCampaignPage(props: {
             <section className="grid gap-8 lg:grid-cols-[1.3fr_1fr]">
                 <div>
                     <div className="text-sm uppercase tracking-widest text-muted-foreground">
-                        Khuyen mai
+                        Khuyến mãi
                     </div>
                     <h1 className="text-3xl sm:text-4xl font-semibold mt-2">
                         {campaign.name}
@@ -49,12 +47,12 @@ export default async function SaleCampaignPage(props: {
                         </span>
                         {campaign.isRunning && (
                             <span className="text-green-600 font-medium">
-                                Dang dien ra
+                                Đang diễn ra
                             </span>
                         )}
                         {campaign.isUpcoming && (
                             <span className="text-orange-600 font-medium">
-                                Sap dien ra
+                                Sắp diễn ra
                             </span>
                         )}
                     </div>
@@ -74,126 +72,35 @@ export default async function SaleCampaignPage(props: {
                 </div>
             </section>
 
-            <section className="mt-12">
-                <div className="flex items-end justify-between mb-6">
-                    <div>
-                        <h2 className="text-2xl font-semibold">
-                            San pham dang giam gia
-                        </h2>
-                        <p className="text-muted-foreground mt-1">
-                            Lua chon tu chien dich khuyen mai
-                        </p>
-                    </div>
-                </div>
-
-                {products.length === 0 ? (
+            {products.length === 0 ? (
+                <section className="mt-12">
                     <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
-                        Chua co san pham nao trong chien dich nay.
+                        Chưa có sản phẩm nào trong chiến dịch này.
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {products.map(({ product, sale }) => {
-                            const primaryImage = product.images?.[0]
-                            const salePrice = sale.salePrice
-                            const original =
-                                sale.originalPrice ??
-                                product.variants?.[0]?.price ??
-                                sale.salePrice
-                            const discount = sale.discountPercentage
-
-                            return (
-                                <AppLink
-                                    key={product.id}
-                                    href={`/product/${product.slug}`}
-                                    className="group"
-                                >
-                                    <div className="relative aspect-square bg-secondary rounded-2xl overflow-hidden mb-4">
-                                        {primaryImage && (
-                                            <Image
-                                                src={primaryImage}
-                                                alt={product.name}
-                                                fill
-                                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                                className="object-cover"
-                                            />
-                                        )}
-                                        {discount && (
-                                            <span className="absolute top-3 left-3 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white">
-                                                -{Math.round(discount)}%
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <h3 className="text-base font-medium text-foreground line-clamp-2">
-                                            {product.name}
-                                        </h3>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-base font-semibold text-foreground">
-                                                {formatMoney({
-                                                    amount: BigInt(
-                                                        Math.round(salePrice),
-                                                    ),
-                                                    currency: CURRENCY,
-                                                    locale: LOCALE,
-                                                })}
-                                            </span>
-                                            {original &&
-                                                original > salePrice && (
-                                                    <span className="text-sm text-muted-foreground line-through">
-                                                        {formatMoney({
-                                                            amount: BigInt(
-                                                                Math.round(
-                                                                    original,
-                                                                ),
-                                                            ),
-                                                            currency: CURRENCY,
-                                                            locale: LOCALE,
-                                                        })}
-                                                    </span>
-                                                )}
-                                        </div>
-                                    </div>
-                                </AppLink>
-                            )
-                        })}
-                    </div>
-                )}
-            </section>
+                </section>
+            ) : (
+                <ProductGrid
+                    title="Sản phẩm đang giảm giá"
+                    description="Lựa chọn từ chiến dịch khuyến mãi"
+                    products={products}
+                    showViewAll={false}
+                />
+            )}
         </main>
     )
 }
 
-async function getCampaignProducts(campaign: SaleCampaignDetail) {
+async function getCampaignProducts(
+    campaign: SaleCampaignDetail,
+): Promise<Product[]> {
     const productIds = Array.from(
         new Set(campaign.items.map((item) => item.productId)),
     )
     const products = await Promise.all(
-        productIds.map(async (id) => ({
-            id,
-            product: await commerce.productGet({ idOrSlug: id }),
-        })),
+        productIds.map((id) => commerce.productGet({ idOrSlug: id })),
     )
 
-    const productMap = new Map<string, Product>()
-    for (const entry of products) {
-        if (entry.product) {
-            productMap.set(entry.id, entry.product)
-        }
-    }
-
-    return campaign.items
-        .map((sale) => {
-            const product = productMap.get(sale.productId)
-            return product ? { product, sale } : null
-        })
-        .filter(
-            (
-                item,
-            ): item is {
-                product: Product
-                sale: SaleCampaignDetail["items"][number]
-            } => item !== null,
-        )
+    return products.filter((p): p is Product => p !== null && p !== undefined)
 }
 
 function formatDateRange(start: string, end: string) {

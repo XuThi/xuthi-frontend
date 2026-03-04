@@ -173,7 +173,7 @@ export function SaleBanner() {
 
                         {/* Running badge */}
                         {campaign.isRunning && (
-                            <div className="absolute top-3 right-3 px-2.5 py-1 bg-red-600 text-white text-xs font-bold rounded-full flex items-center gap-1 shadow-lg">
+                            <div className="absolute top-3 right-3 px-2.5 py-1 bg-black text-white text-xs font-bold rounded-full flex items-center gap-1 shadow-lg">
                                 <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
                                 LIVE
                             </div>

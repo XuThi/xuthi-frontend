@@ -236,6 +236,7 @@ function ImageUploader({
 export default function ProductForm({ initialData }: ProductFormProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const [notifySubscribers, setNotifySubscribers] = useState(false)
     const [pendingImageFiles, setPendingImageFiles] = useState<File[]>([])
     const [pendingImagePreviews, setPendingImagePreviews] = useState<string[]>(
         [],
@@ -455,6 +456,7 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                 categoryId: data.categoryId,
                 brandId: data.brandId,
                 isActive: data.isActive,
+                notifySubscribers,
                 images: (data.images || []).filter(
                     (url) => !url.startsWith("blob:"),
                 ),
@@ -1178,12 +1180,27 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                     </div>
                 </div>
 
-                <Button type="submit" disabled={loading} size="lg">
-                    {loading && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    {initialData ? "Lưu thay đổi" : "Tạo sản phẩm"}
-                </Button>
+                <div className="flex items-center gap-6">
+                    <Button type="submit" disabled={loading} size="lg">
+                        {loading && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        {initialData ? "Lưu thay đổi" : "Tạo sản phẩm"}
+                    </Button>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={notifySubscribers}
+                            onChange={(e) =>
+                                setNotifySubscribers(e.target.checked)
+                            }
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-muted-foreground">
+                            Gửi email thông báo đến người đăng ký nhận tin
+                        </span>
+                    </label>
+                </div>
             </form>
         </Form>
     )

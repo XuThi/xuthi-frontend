@@ -14,10 +14,10 @@ export default async function CollectionsPage() {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="mb-10">
                 <h1 className="text-3xl sm:text-4xl font-semibold">
-                    Bo suu tap
+                    Bộ sưu tập
                 </h1>
                 <p className="mt-2 text-muted-foreground">
-                    Kham pha cac danh muc san pham noi bat.
+                    Khám phá các danh mục sản phẩm nổi bật.
                 </p>
             </div>
 

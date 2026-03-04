@@ -38,9 +38,6 @@ const API_BASE_URL = getApiBaseUrl()
 /**
  * Generic fetch wrapper with error handling
  */
-/**
- * Generic fetch wrapper with error handling
- */
 async function apiFetch<T>(
     endpoint: string,
     options: RequestInit = {},
@@ -204,6 +201,7 @@ async function categoryBrowse(
             name: c.name,
             slug: (c as any).urlSlug || c.slug, // Map urlSlug to slug
             description: c.description,
+            image: (c as any).imageUrl || c.image,
             parentCategoryId: c.parentCategoryId,
             sortOrder: c.sortOrder,
             productCount: c.productCount,
@@ -549,6 +547,33 @@ async function customerGetByExternal(
         return (result as any).customer ?? (result as CustomerDetail)
     } catch {
         return null
+    }
+}
+
+async function customerUpdate(params: {
+    customerId: string
+    fullName?: string
+    phone?: string
+    dateOfBirth?: string
+    gender?: string
+    acceptsMarketing?: boolean
+    acceptsSms?: boolean
+}): Promise<boolean> {
+    try {
+        await apiFetch(`/api/customers/${params.customerId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+                fullName: params.fullName,
+                phone: params.phone,
+                dateOfBirth: params.dateOfBirth,
+                gender: params.gender,
+                acceptsMarketing: params.acceptsMarketing,
+                acceptsSms: params.acceptsSms,
+            }),
+        })
+        return true
+    } catch {
+        return false
     }
 }
 
@@ -912,6 +937,7 @@ export const api = {
     customerBrowse,
     customerGet,
     customerGetByExternal,
+    customerUpdate,
     addressCreate,
     addressUpdate,
     addressDelete,
