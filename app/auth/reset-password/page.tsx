@@ -72,7 +72,7 @@ function ResetPasswordForm() {
           </p>
           <Link
             href="/auth/forgot-password"
-            className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
+            className="inline-flex items-center text-sm font-medium text-link hover:opacity-80"
           >
             Yêu cầu link mới
           </Link>
@@ -96,7 +96,7 @@ function ResetPasswordForm() {
           </p>
           <Link
             href="/auth/login"
-            className="inline-flex items-center justify-center w-full py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center justify-center w-full py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90"
           >
             Đăng nhập
           </Link>
@@ -136,7 +136,7 @@ function ResetPasswordForm() {
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="appearance-none block w-full pr-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="appearance-none block w-full pr-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-ring focus:border-ring sm:text-sm"
                 placeholder="Ít nhất 6 ký tự"
                 minLength={6}
               />
@@ -166,7 +166,7 @@ function ResetPasswordForm() {
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-ring focus:border-ring sm:text-sm"
                 placeholder="Nhập lại mật khẩu mới"
                 minLength={6}
               />
@@ -180,7 +180,7 @@ function ResetPasswordForm() {
             <button
               type="submit"
               disabled={isLoading || newPassword !== confirmPassword}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring disabled:opacity-50"
             >
               {isLoading ? (
                 <>
@@ -212,7 +212,7 @@ export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     }>
       <ResetPasswordForm />

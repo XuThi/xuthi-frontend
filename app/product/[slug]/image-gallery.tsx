@@ -44,13 +44,20 @@ export function ImageGallery({
         setMounted(true)
     }, [])
 
-    // Track previous searchParams to reset index when variant changes
+    // Track search param changes to reset image index when variant changes
     const searchParamsKey = searchParams.toString()
-    const prevSearchParamsKey = useRef(searchParamsKey)
-    if (prevSearchParamsKey.current !== searchParamsKey) {
-        prevSearchParamsKey.current = searchParamsKey
-        setSelectedIndex(0)
-    }
+    const prevSearchParamsKey = useRef<string | null>(null)
+    useEffect(() => {
+        if (prevSearchParamsKey.current === null) {
+            prevSearchParamsKey.current = searchParamsKey
+            return
+        }
+
+        if (prevSearchParamsKey.current !== searchParamsKey) {
+            prevSearchParamsKey.current = searchParamsKey
+            setSelectedIndex(0)
+        }
+    }, [searchParamsKey])
 
     const displayImages = useMemo(() => {
         const selectedVariant = variants.find((v) => {
@@ -119,11 +126,26 @@ export function ImageGallery({
         return () => document.removeEventListener("keydown", handleKeyDown)
     }, [isFullscreen, displayImages.length, selectedIndex])
 
-    // Lock body scroll
+    // Lock body scroll without causing horizontal layout shift.
     useEffect(() => {
-        document.body.style.overflow = isFullscreen ? "hidden" : ""
+        const { body, documentElement } = document
+        const previousOverflow = body.style.overflow
+        const previousPaddingRight = body.style.paddingRight
+
+        if (isFullscreen) {
+            const scrollbarWidth = window.innerWidth - documentElement.clientWidth
+            body.style.overflow = "hidden"
+            if (scrollbarWidth > 0) {
+                body.style.paddingRight = `${scrollbarWidth}px`
+            }
+        } else {
+            body.style.overflow = ""
+            body.style.paddingRight = ""
+        }
+
         return () => {
-            document.body.style.overflow = ""
+            body.style.overflow = previousOverflow
+            body.style.paddingRight = previousPaddingRight
         }
     }, [isFullscreen])
 
@@ -147,7 +169,7 @@ export function ImageGallery({
                           "fixed inset-0 bg-black/95 transition-opacity duration-300",
                           "flex items-center justify-center",
                           // z-[9999] at body level ensures it's truly above everything
-                          "z-[9999]",
+                          "z-9999",
                           fullscreenVisible ? "opacity-100" : "opacity-0",
                       )}
                       // Click anywhere on the dark backdrop closes the viewer
@@ -166,13 +188,13 @@ export function ImageGallery({
                           <X className="h-5 w-5" />
                       </button>
 
-                      {/* Image — stop click propagation only on the image itself */}
+                      {/* Image — constrained so backdrop clicks outside can close */}
                       <div
                           className={cn(
-                              "relative w-full h-full transition-transform duration-300",
+                              "relative transition-transform duration-300",
                               fullscreenVisible ? "scale-100" : "scale-95",
                           )}
-                          onClick={(e) => e.stopPropagation()}
+                          style={{ width: "85vw", height: "85vh", maxWidth: "1200px" }}
                       >
                           <Image
                               src={displayImages[selectedIndex]}
@@ -184,7 +206,6 @@ export function ImageGallery({
                           />
                       </div>
 
-                      {/* Navigation arrows */}
                       {displayImages.length > 1 && (
                           <>
                               <button
@@ -305,7 +326,7 @@ export function ImageGallery({
                                 className={cn(
                                     "relative aspect-square w-20 shrink-0 overflow-hidden rounded-lg transition-all duration-200",
                                     selectedIndex === index
-                                        ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
+                                        ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
                                         : "opacity-60 hover:opacity-100",
                                 )}
                             >

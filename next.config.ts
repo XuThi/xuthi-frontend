@@ -40,7 +40,6 @@ const nextConfig: NextConfig = {
     images: {
         remotePatterns: [
             { protocol: "https", hostname: "*.blob.vercel-storage.com" },
-            { protocol: "https", hostname: "firebasestorage.googleapis.com" },
             { protocol: "https", hostname: "cdn.hstatic.net" },
             { protocol: "https", hostname: "res.cloudinary.com" },
         ],

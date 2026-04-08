@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useCart } from "@/app/cart/cart-context"
 import { clearCartAction } from "@/app/cart/actions"
 import { Button } from "@/components/ui/button"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import {
     CreditCard,
     Truck,
@@ -23,7 +24,8 @@ import { api } from "@/lib/api/client"
 import type { Address } from "@/lib/api/types"
 
 const API_URL = "/api/bff"
-const LOCATION_API = "https://provinces.open-api.vn/api"
+// Using internal API to serve our local JSON data
+const LOCATION_API = "/api/locations"
 
 function formatCurrency(amount: number) {
     return new Intl.NumberFormat("vi-VN", {
@@ -34,19 +36,17 @@ function formatCurrency(amount: number) {
 
 // Types for location data
 interface Province {
-    code: number
+    code: string
     name: string
+    name_with_type: string
 }
 
 interface District {
-    code: number
+    code: string
     name: string
+    name_with_type: string
 }
 
-interface Ward {
-    code: number
-    name: string
-}
 
 function normalizeLocationName(name: string) {
     return name
@@ -77,10 +77,8 @@ export default function CheckoutPage() {
     // Location data state
     const [provinces, setProvinces] = useState<Province[]>([])
     const [districts, setDistricts] = useState<District[]>([])
-    const [wards, setWards] = useState<Ward[]>([])
     const [loadingProvinces, setLoadingProvinces] = useState(false)
     const [loadingDistricts, setLoadingDistricts] = useState(false)
-    const [loadingWards, setLoadingWards] = useState(false)
     const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
     const [selectedAddressId, setSelectedAddressId] = useState("")
     const [addressLoading, setAddressLoading] = useState(false)
@@ -109,8 +107,6 @@ export default function CheckoutPage() {
         cityName: "",
         district: "",
         districtName: "",
-        ward: "",
-        wardName: "",
         notes: "",
         paymentMethod: "cod",
     })
@@ -134,10 +130,10 @@ export default function CheckoutPage() {
         const fetchProvinces = async () => {
             setLoadingProvinces(true)
             try {
-                const response = await fetch(`${LOCATION_API}/p/`)
+                const response = await fetch(`${LOCATION_API}/provinces`)
                 if (response.ok) {
-                    const data = await response.json()
-                    setProvinces(data || [])
+                    const result = await response.json()
+                    setProvinces(result.data || [])
                 }
             } catch (err) {
                 console.error("Failed to fetch provinces:", err)
@@ -153,27 +149,23 @@ export default function CheckoutPage() {
     useEffect(() => {
         if (!formData.city) {
             setDistricts([])
-            setWards([])
             return
         }
         const fetchDistricts = async () => {
             setLoadingDistricts(true)
             setDistricts([])
-            setWards([])
             setFormData((prev) => ({
                 ...prev,
                 district: "",
-                districtName: "",
-                ward: "",
-                wardName: "",
             }))
             try {
                 const response = await fetch(
-                    `${LOCATION_API}/p/${formData.city}?depth=2`,
+                    `${LOCATION_API}/wards?provinceCode=${formData.city}`,
                 )
                 if (response.ok) {
-                    const data = await response.json()
-                    setDistricts(data.districts || [])
+                    const result = await response.json()
+                    // Reusing the existing districts state to hold wards data to minimize code changes
+                    setDistricts(result.data || [])
                 }
             } catch (err) {
                 console.error("Failed to fetch districts:", err)
@@ -183,33 +175,6 @@ export default function CheckoutPage() {
         }
         fetchDistricts()
     }, [formData.city])
-
-    // Fetch wards when district changes
-    useEffect(() => {
-        if (!formData.district) {
-            setWards([])
-            return
-        }
-        const fetchWards = async () => {
-            setLoadingWards(true)
-            setWards([])
-            setFormData((prev) => ({ ...prev, ward: "", wardName: "" }))
-            try {
-                const response = await fetch(
-                    `${LOCATION_API}/d/${formData.district}?depth=2`,
-                )
-                if (response.ok) {
-                    const data = await response.json()
-                    setWards(data.wards || [])
-                }
-            } catch (err) {
-                console.error("Failed to fetch wards:", err)
-            } finally {
-                setLoadingWards(false)
-            }
-        }
-        fetchWards()
-    }, [formData.district])
 
     // Error message is now handled by the auth guards below, not via a stale useEffect
 
@@ -233,10 +198,8 @@ export default function CheckoutPage() {
             fullName: addr.recipientName || prev.fullName,
             phone: addr.phone || prev.phone,
             address: addr.address,
-            ward: "",
-            wardName: addr.ward,
             district: "",
-            districtName: addr.district,
+            districtName: addr.ward, // Use ward for the second tier
             city: "",
             cityName: addr.city,
         }))
@@ -257,7 +220,7 @@ export default function CheckoutPage() {
             setFormData((prev) => ({
                 ...prev,
                 city: String(cityMatch.code),
-                cityName: cityMatch.name,
+                cityName: cityMatch.name_with_type,
             }))
         }
     }, [formData.cityName, formData.city, provinces])
@@ -281,30 +244,11 @@ export default function CheckoutPage() {
             setFormData((prev) => ({
                 ...prev,
                 district: String(districtMatch.code),
-                districtName: districtMatch.name,
+                districtName: districtMatch.name_with_type,
             }))
         }
     }, [formData.districtName, formData.district, formData.city, districts])
 
-    useEffect(() => {
-        if (!formData.wardName || wards.length === 0) {
-            return
-        }
-
-        const wardMatch = wards.find(
-            (w) =>
-                normalizeLocationName(w.name) ===
-                normalizeLocationName(formData.wardName),
-        )
-
-        if (wardMatch && String(wardMatch.code) !== formData.ward) {
-            setFormData((prev) => ({
-                ...prev,
-                ward: String(wardMatch.code),
-                wardName: wardMatch.name,
-            }))
-        }
-    }, [formData.wardName, formData.ward, wards])
 
     useEffect(() => {
         const fetchAddresses = async () => {
@@ -340,7 +284,7 @@ export default function CheckoutPage() {
     if (!mounted || isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         )
     }
@@ -358,7 +302,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-center gap-3">
                         <Link
                             href="/auth/login?redirect=/checkout"
-                            className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            className="px-5 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
                         >
                             Đăng nhập
                         </Link>
@@ -393,7 +337,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-center gap-3">
                         <Link
                             href="/profile"
-                            className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            className="px-5 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
                         >
                             Đi đến tài khoản
                         </Link>
@@ -412,7 +356,7 @@ export default function CheckoutPage() {
     // Order success screen
     if (orderComplete) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-green-50 to-blue-50 py-12 px-4">
+            <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-green-50 to-primary/5 py-12 px-4">
                 <div className="max-w-md w-full">
                     <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
                         <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
@@ -423,7 +367,7 @@ export default function CheckoutPage() {
                         </h2>
                         <p className="text-gray-600 mb-2">
                             Mã đơn hàng:{" "}
-                            <strong className="text-blue-600">
+                            <strong className="text-primary">
                                 {orderComplete.orderNumber}
                             </strong>
                         </p>
@@ -440,7 +384,7 @@ export default function CheckoutPage() {
                         <div className="space-y-3">
                             <Link
                                 href="/orders"
-                                className="block w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                className="block w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
                             >
                                 Xem đơn hàng
                             </Link>
@@ -470,7 +414,7 @@ export default function CheckoutPage() {
                     </p>
                     <Link
                         href="/"
-                        className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                     >
                         Tiếp tục mua sắm
                     </Link>
@@ -488,35 +432,26 @@ export default function CheckoutPage() {
         setFormData((prev) => ({ ...prev, [name]: value }))
     }
 
-    const handleProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const provinceId = e.target.value
+    const handleProvinceSelect = (provinceId: string) => {
         const province = provinces.find((p) => String(p.code) === provinceId)
         setFormData((prev) => ({
             ...prev,
             city: provinceId,
-            cityName: province?.name || "",
+            cityName: province?.name_with_type || "",
+            district: "",
+            districtName: "",
         }))
     }
 
-    const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const districtId = e.target.value
+    const handleDistrictSelect = (districtId: string) => {
         const district = districts.find((d) => String(d.code) === districtId)
         setFormData((prev) => ({
             ...prev,
             district: districtId,
-            districtName: district?.name || "",
+            districtName: district?.name_with_type || "",
         }))
     }
 
-    const handleWardChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const wardId = e.target.value
-        const ward = wards.find((w) => String(w.code) === wardId)
-        setFormData((prev) => ({
-            ...prev,
-            ward: wardId,
-            wardName: ward?.name || "",
-        }))
-    }
 
     const handleApplyVoucher = async () => {
         if (!voucherCode.trim()) return
@@ -579,8 +514,14 @@ export default function CheckoutPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setIsSubmitting(true)
         setError(null)
+
+        if (!formData.city || !formData.district) {
+            setError("Vui lòng chọn Tỉnh/Thành phố và Xã/Phường/Thị trấn.")
+            return
+        }
+
+        setIsSubmitting(true)
 
         try {
             // Prepare checkout request
@@ -591,8 +532,7 @@ export default function CheckoutPage() {
                 customerPhone: formData.phone,
                 shippingAddress: formData.address,
                 shippingCity: formData.cityName || formData.city,
-                shippingDistrict: formData.districtName || formData.district,
-                shippingWard: formData.wardName || formData.ward || "N/A",
+                shippingWard: formData.districtName || formData.district,
                 shippingNote: formData.notes || null,
                 paymentMethod: formData.paymentMethod === "cod" ? 1 : 3,
                 items: cart.items.map((item) => ({
@@ -704,7 +644,7 @@ export default function CheckoutPage() {
                         {/* Shipping Info */}
                         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                             <div className="flex items-center gap-3 mb-4">
-                                <MapPin className="w-5 h-5 text-blue-600" />
+                                <MapPin className="w-5 h-5 text-primary" />
                                 <h2 className="text-lg font-semibold">
                                     Thông tin giao hàng
                                 </h2>
@@ -733,7 +673,7 @@ export default function CheckoutPage() {
                                                     applyAddress(selected)
                                                 }
                                             }}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-ring focus:border-ring"
                                         >
                                             <option value="">
                                                 -- Chọn địa chỉ --
@@ -764,7 +704,7 @@ export default function CheckoutPage() {
                                         onChange={handleChange}
                                         required
                                         placeholder="Nguyễn Văn A"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-ring focus:border-ring"
                                     />
                                 </div>
                                 <div>
@@ -778,7 +718,7 @@ export default function CheckoutPage() {
                                         onChange={handleChange}
                                         required
                                         placeholder="0912 345 678"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-ring focus:border-ring"
                                     />
                                 </div>
 
@@ -795,32 +735,25 @@ export default function CheckoutPage() {
                                             </span>
                                         </div>
                                     ) : (
-                                        <select
-                                            name="city"
+                                        <SearchableSelect
                                             value={formData.city}
-                                            onChange={handleProvinceChange}
-                                            required
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                        >
-                                            <option value="">
-                                                -- Chọn Tỉnh/Thành phố --
-                                            </option>
-                                            {provinces.map((p) => (
-                                                <option
-                                                    key={p.code}
-                                                    value={p.code}
-                                                >
-                                                    {p.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            onValueChange={handleProvinceSelect}
+                                            disabled={provinces.length === 0}
+                                            placeholder="-- Chọn Tỉnh/Thành phố --"
+                                            searchPlaceholder="Tìm tỉnh/thành phố"
+                                            emptyText="Không tìm thấy tỉnh/thành phố"
+                                            options={provinces.map((province) => ({
+                                                value: String(province.code),
+                                                label: province.name_with_type,
+                                            }))}
+                                        />
                                     )}
                                 </div>
 
                                 {/* District */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Quận/Huyện *
+                                        Xã/Phường/Thị trấn *
                                     </label>
                                     {loadingDistricts ? (
                                         <div className="flex items-center gap-2 py-2">
@@ -830,65 +763,28 @@ export default function CheckoutPage() {
                                             </span>
                                         </div>
                                     ) : (
-                                        <select
-                                            name="district"
+                                        <SearchableSelect
                                             value={formData.district}
-                                            onChange={handleDistrictChange}
-                                            required
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                        >
-                                            <option value="">
-                                                {formData.city
-                                                    ? "-- Chọn Quận/Huyện --"
-                                                    : "-- Chọn Tỉnh/Thành phố trước --"}
-                                            </option>
-                                            {districts.map((d) => (
-                                                <option
-                                                    key={d.code}
-                                                    value={d.code}
-                                                >
-                                                    {d.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            onValueChange={handleDistrictSelect}
+                                            disabled={
+                                                !formData.city ||
+                                                districts.length === 0
+                                            }
+                                            placeholder={
+                                                formData.city
+                                                    ? "-- Chọn Xã/Phường/Thị trấn --"
+                                                    : "-- Chọn Tỉnh/Thành phố trước --"
+                                            }
+                                            searchPlaceholder="Tìm xã/phường/thị trấn"
+                                            emptyText="Không tìm thấy xã/phường/thị trấn"
+                                            options={districts.map((district) => ({
+                                                value: String(district.code),
+                                                label: district.name_with_type,
+                                            }))}
+                                        />
                                     )}
                                 </div>
 
-                                {/* Ward */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Phường/Xã
-                                    </label>
-                                    {loadingWards ? (
-                                        <div className="flex items-center gap-2 py-2">
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            <span className="text-sm text-gray-500">
-                                                Đang tải...
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        <select
-                                            name="ward"
-                                            value={formData.ward}
-                                            onChange={handleWardChange}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                        >
-                                            <option value="">
-                                                {formData.district
-                                                    ? "-- Chọn Phường/Xã --"
-                                                    : "-- Chọn Quận/Huyện trước --"}
-                                            </option>
-                                            {wards.map((w) => (
-                                                <option
-                                                    key={w.code}
-                                                    value={w.code}
-                                                >
-                                                    {w.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
-                                </div>
 
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -901,7 +797,7 @@ export default function CheckoutPage() {
                                         onChange={handleChange}
                                         required
                                         placeholder="Số nhà, tên đường"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-ring focus:border-ring"
                                     />
                                 </div>
 
@@ -915,7 +811,7 @@ export default function CheckoutPage() {
                                         onChange={handleChange}
                                         rows={3}
                                         placeholder="Ghi chú cho đơn hàng (không bắt buộc)"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-ring focus:border-ring"
                                     />
                                 </div>
                             </div>
@@ -924,7 +820,7 @@ export default function CheckoutPage() {
                         {/* Voucher Input */}
                         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                             <div className="flex items-center gap-3 mb-4">
-                                <Tag className="w-5 h-5 text-blue-600" />
+                                <Tag className="w-5 h-5 text-primary" />
                                 <h2 className="text-lg font-semibold">
                                     Mã giảm giá
                                 </h2>
@@ -968,7 +864,7 @@ export default function CheckoutPage() {
                                                 setVoucherError(null)
                                             }}
                                             placeholder="Nhập mã giảm giá"
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-ring focus:border-ring"
                                         />
                                         <Button
                                             type="button"
@@ -998,7 +894,7 @@ export default function CheckoutPage() {
                         {/* Payment Method */}
                         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                             <div className="flex items-center gap-3 mb-4">
-                                <CreditCard className="w-5 h-5 text-blue-600" />
+                                <CreditCard className="w-5 h-5 text-primary" />
                                 <h2 className="text-lg font-semibold">
                                     Phương thức thanh toán
                                 </h2>
@@ -1064,9 +960,9 @@ export default function CheckoutPage() {
                                                 e.target.checked,
                                             )
                                         }
-                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-ring"
                                     />
-                                    <Bell className="w-5 h-5 text-blue-600 shrink-0" />
+                                    <Bell className="w-5 h-5 text-primary shrink-0" />
                                     <div>
                                         <span className="text-sm font-medium">
                                             Nhận thông tin khuyến mãi
@@ -1160,7 +1056,7 @@ export default function CheckoutPage() {
                             )}
                             <div className="flex justify-between font-semibold text-lg pt-2 border-t">
                                 <span>Tổng cộng</span>
-                                <span className="text-blue-600">
+                                <span className="text-primary">
                                     {formatCurrency(total)}
                                 </span>
                             </div>

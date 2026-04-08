@@ -118,7 +118,6 @@ export interface Order {
     customerPhone: string
     shippingAddress: string
     shippingCity: string
-    shippingDistrict: string
     shippingWard: string
     shippingNote?: string
     subtotal: number
@@ -167,7 +166,6 @@ export interface Address {
     recipientName: string
     address: string
     ward: string
-    district: string
     city: string
     phone: string
     note?: string

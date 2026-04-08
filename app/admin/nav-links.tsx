@@ -1,6 +1,7 @@
 "use client"
 
-import Link from "next/link" // Import Link
+import Link from "next/link"
+import Image from "next/image"
 import {
     LayoutDashboard,
     Package,
@@ -13,26 +14,90 @@ import {
     List,
     Tags,
     Sliders,
+    type LucideIcon,
 } from "lucide-react"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarSeparator,
+} from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
 
-const links = [
+type NavItem = {
+    name: string
+    href: string
+    icon: LucideIcon
+}
+
+const mainLinks: NavItem[] = [
     { name: "Tổng quan", href: "/admin", icon: LayoutDashboard },
+]
+
+const catalogLinks: NavItem[] = [
     { name: "Sản phẩm", href: "/admin/products", icon: Package },
-    { name: "Danh mục", href: "/admin/categories", icon: List }, // Add Categories link
+    { name: "Danh mục", href: "/admin/categories", icon: List },
     { name: "Thương hiệu", href: "/admin/brands", icon: Tags },
     { name: "Thuộc tính", href: "/admin/variant-options", icon: Sliders },
+]
+
+const salesLinks: NavItem[] = [
     { name: "Đơn hàng", href: "/admin/orders", icon: ShoppingCart },
     { name: "Khách hàng", href: "/admin/customers", icon: Users },
     { name: "Mã giảm giá", href: "/admin/vouchers", icon: Ticket },
     { name: "Sale campaign", href: "/admin/sale-campaigns", icon: Percent },
+]
+
+const settingsLinks: NavItem[] = [
     { name: "Cấu hình", href: "/admin/settings", icon: Settings },
 ]
 
-export default function AdminNavLinks() {
+function NavGroup({
+    label,
+    items,
+    pathname,
+}: { label?: string; items: NavItem[]; pathname: string }) {
+    return (
+        <SidebarGroup>
+            {label && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
+            <SidebarGroupContent>
+                <SidebarMenu>
+                    {items.map((item) => {
+                        const isActive =
+                            item.href === "/admin"
+                                ? pathname === "/admin"
+                                : pathname.startsWith(item.href)
+                        return (
+                            <SidebarMenuItem key={item.href}>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={isActive}
+                                    tooltip={item.name}
+                                >
+                                    <Link href={item.href}>
+                                        <item.icon />
+                                        <span>{item.name}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        )
+                    })}
+                </SidebarMenu>
+            </SidebarGroupContent>
+        </SidebarGroup>
+    )
+}
+
+export function AdminSidebar() {
     const pathname = usePathname()
     const router = useRouter()
     const { logout } = useAuth()
@@ -44,43 +109,75 @@ export default function AdminNavLinks() {
     }
 
     return (
-        <>
-            {links.map((link) => {
-                const LinkIcon = link.icon
-                return (
-                    <Link
-                        key={link.name}
-                        href={link.href}
-                        className={cn(
-                            "flex h-[48px] grow items-center justify-center gap-2 rounded-md bg-gray-50 p-3 text-sm font-medium hover:bg-sky-100 hover:text-blue-600 md:flex-none md:justify-start md:p-2 md:px-3",
-                            {
-                                "bg-sky-100 text-blue-600":
-                                    pathname === link.href,
-                            },
-                        )}
-                    >
-                        <LinkIcon className="w-6" />
-                        <p className="hidden md:block">{link.name}</p>
-                    </Link>
-                )
-            })}
+        <Sidebar collapsible="icon">
+            <SidebarHeader>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton size="lg" asChild>
+                            <Link href="/">
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white text-black border border-border">
+                                    <Image
+                                        src="https://res.cloudinary.com/dxlhncwp0/image/upload/v1769941817/logo_qlelti.svg"
+                                        alt="XuThi"
+                                        width={20}
+                                        height={20}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-0.5 leading-none">
+                                    <span className="font-semibold">
+                                        XuThi Admin
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        Quản lý cửa hàng
+                                    </span>
+                                </div>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarHeader>
 
-            <div className="hidden h-auto w-full grow rounded-md bg-gray-50 md:block"></div>
 
-            <form
-                onSubmit={(e) => {
-                    e.preventDefault()
-                    handleLogout()
-                }}
-            >
-                <button
-                    type="submit"
-                    className="flex h-[48px] w-full grow items-center justify-center gap-2 rounded-md bg-gray-50 p-3 text-sm font-medium hover:bg-sky-100 hover:text-blue-600 md:flex-none md:justify-start md:p-2 md:px-3"
-                >
-                    <LogOut className="w-6" />
-                    <div className="hidden md:block">Đăng xuất</div>
-                </button>
-            </form>
-        </>
+            <SidebarContent>
+                <NavGroup items={mainLinks} pathname={pathname} />
+                <NavGroup
+                    label="Sản phẩm"
+                    items={catalogLinks}
+                    pathname={pathname}
+                />
+                <NavGroup
+                    label="Bán hàng"
+                    items={salesLinks}
+                    pathname={pathname}
+                />
+                <NavGroup
+                    label="Hệ thống"
+                    items={settingsLinks}
+                    pathname={pathname}
+                />
+            </SidebarContent>
+
+            <SidebarFooter>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start"
+                                onClick={handleLogout}
+                            >
+                                <LogOut />
+                                <span>Đăng xuất</span>
+                            </Button>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarFooter>
+        </Sidebar>
     )
+}
+
+// Keep the default export for backward compat, but the layout now uses AdminSidebar directly
+export default function AdminNavLinks() {
+    return null
 }

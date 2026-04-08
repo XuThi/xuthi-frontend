@@ -1,36 +1,25 @@
 import { cacheLife } from "next/cache";
-import { AppLink } from "@/components/app-link";
+import Link from "next/link";
+import Image from "next/image";
 import { commerce } from "@/lib/commerce";
+import { NavbarClient } from "@/app/navbar-client";
 
 export async function Navbar() {
 	"use cache";
 	cacheLife("hours");
 
-	const categories = await commerce.collectionBrowse({ limit: 5 });
+	const [categoriesResult, salesResult] = await Promise.all([
+		commerce.collectionBrowse({ limit: 20 }),
+		commerce.saleCampaignBrowse({ isActive: true, pageSize: 10 }),
+	]);
 
-	if (categories.data.length === 0) {
-		return null;
-	}
+	const categories = categoriesResult.data;
+	const saleCampaigns = salesResult.data;
 
 	return (
-		<nav className="hidden sm:flex items-center gap-6">
-			<AppLink
-				prefetch={"eager"}
-				href="/"
-				className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-			>
-				Home
-			</AppLink>
-			{categories.data.map((category) => (
-				<AppLink
-					prefetch={"eager"}
-					key={category.id}
-					href={`/collection/${category.slug}`}
-					className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-				>
-					{category.name}
-				</AppLink>
-			))}
-		</nav>
+		<NavbarClient
+			categories={categories}
+			saleCampaigns={saleCampaigns}
+		/>
 	);
 }

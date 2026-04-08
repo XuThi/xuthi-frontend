@@ -16,9 +16,14 @@ export default async function CategoriesPage() {
     const { data: categories } = await api.categoryBrowse({ limit: 100 })
 
     return (
-        <div className="w-full">
+        <div className="space-y-4">
             <div className="flex w-full items-center justify-between">
-                <h1 className="text-2xl font-bold">Quản lý danh mục</h1>
+                <div>
+                    <h1 className="text-2xl font-bold">Quản lý danh mục</h1>
+                    <p className="text-muted-foreground">
+                        Tổ chức danh mục để khách hàng lọc sản phẩm nhanh hơn.
+                    </p>
+                </div>
                 <Button asChild>
                     <Link href="/admin/categories/new">
                         <Plus className="mr-2 h-4 w-4" /> Thêm danh mục
@@ -26,7 +31,7 @@ export default async function CategoriesPage() {
                 </Button>
             </div>
 
-            <div className="mt-8 rounded-md border">
+            <div className="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>

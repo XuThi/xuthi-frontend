@@ -201,7 +201,7 @@ export async function ProductGrid({
                         >
                             <div className="relative aspect-square bg-secondary rounded-2xl overflow-hidden mb-4">
                                 {maxDiscountPercent && (
-                                    <span className="absolute left-3 top-3 z-10 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                                    <span className="absolute left-3 top-3 z-10 rounded-full bg-sale px-3 py-1 text-xs font-semibold text-sale-foreground shadow-sm">
                                         -{maxDiscountPercent}%
                                     </span>
                                 )}

@@ -54,7 +54,7 @@ export default async function CollectionsPage() {
                                 </p>
                             )}
                             <p className="mt-3 text-sm text-muted-foreground">
-                                {category.productCount ?? 0} san pham
+                                {category.productCount ?? 0} sản phẩm
                             </p>
                         </div>
                     </AppLink>

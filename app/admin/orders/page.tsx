@@ -11,17 +11,23 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { api } from '@/lib/api/client';
+import { getOrderStatusMeta } from "@/lib/admin/presentation";
 
 export default async function OrdersPage() {
   const { data: orders } = await api.orderBrowse();
 
   return (
-    <div className="w-full">
+    <div className="space-y-4">
       <div className="flex w-full items-center justify-between">
-        <h1 className="text-2xl font-bold">Quản lý đơn hàng</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Quản lý đơn hàng</h1>
+          <p className="text-muted-foreground">
+            Theo dõi trạng thái xử lý và thanh toán của từng đơn.
+          </p>
+        </div>
       </div>
       
-      <div className="mt-8 rounded-md border">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -43,6 +49,10 @@ export default async function OrdersPage() {
             ) : (
               orders.map((order) => (
                 <TableRow key={order.id}>
+                  {(() => {
+                    const statusMeta = getOrderStatusMeta(order.status)
+                    return (
+                      <>
                   <TableCell className="font-medium">#{order.orderNumber}</TableCell>
                   <TableCell>
                     <div className="flex flex-col">
@@ -52,17 +62,8 @@ export default async function OrdersPage() {
                   </TableCell>
                   <TableCell>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={
-                        order.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-                        order.status === 'Confirmed' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                        order.status === 'Processing' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' :
-                        order.status === 'Shipped' ? 'bg-purple-100 text-purple-800 border-purple-300' :
-                        order.status === 'Delivered' ? 'bg-green-100 text-green-800 border-green-300' :
-                        order.status === 'Completed' ? 'bg-green-100 text-green-700 border-green-300' :
-                        order.status === 'Cancelled' ? 'bg-red-100 text-red-700 border-red-300' :
-                        'bg-gray-100 text-gray-700 border-gray-300'
-                    }>
-                        {order.status}
+                    <Badge variant="outline" className={statusMeta.badgeClass}>
+                        {statusMeta.label}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -75,6 +76,9 @@ export default async function OrdersPage() {
                         </Link>
                     </Button>
                   </TableCell>
+                      </>
+                    )
+                  })()}
                 </TableRow>
               ))
             )}

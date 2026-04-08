@@ -19,6 +19,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { getTierBadgeClass, getTierLabel } from "@/lib/admin/presentation"
 
 const API_URL = "/api/bff"
 
@@ -38,19 +39,6 @@ interface Order {
     customerEmail: string
     status: string
     total: number
-}
-
-function getTierBadgeClass(tier: unknown) {
-    switch (String(tier ?? "").toLowerCase()) {
-        case "platinum":
-            return "bg-purple-100 text-purple-800 border-purple-300"
-        case "gold":
-            return "bg-amber-100 text-amber-800 border-amber-300"
-        case "silver":
-            return "bg-slate-100 text-slate-800 border-slate-300"
-        default:
-            return "bg-blue-100 text-blue-800 border-blue-300"
-    }
 }
 
 export default function CustomersPage() {
@@ -146,12 +134,17 @@ export default function CustomersPage() {
     }
 
     return (
-        <div className="w-full">
+        <div className="space-y-4">
             <div className="flex w-full items-center justify-between">
-                <h1 className="text-2xl font-bold">Quản lý khách hàng</h1>
+                <div>
+                    <h1 className="text-2xl font-bold">Quản lý khách hàng</h1>
+                    <p className="text-muted-foreground">
+                        Theo dõi hồ sơ thành viên và hiệu suất mua hàng.
+                    </p>
+                </div>
             </div>
 
-            <div className="mt-8 rounded-md border">
+            <div className="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -197,7 +190,7 @@ export default function CustomersPage() {
                                                 c.tier,
                                             )}
                                         >
-                                            {c.tier}
+                                            {getTierLabel(c.tier)}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>{c.totalOrders}</TableCell>

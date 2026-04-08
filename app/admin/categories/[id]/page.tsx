@@ -1,8 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useParams } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api/client"
 import type { Category } from "@/lib/api/types"
 import CategoryForm from "../category-form"
@@ -26,7 +28,12 @@ export default function EditCategoryPage() {
 
     return (
         <div className="space-y-6">
-            <div>
+            <div className="flex items-center gap-4">
+                <Button variant="outline" size="icon" asChild>
+                    <Link href="/admin/categories">
+                        <ArrowLeft className="h-4 w-4" />
+                    </Link>
+                </Button>
                 <h1 className="text-2xl font-bold">Chỉnh sửa danh mục</h1>
             </div>
 

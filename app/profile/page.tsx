@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import {
     User,
     Mail,
@@ -23,19 +24,17 @@ import { api } from "@/lib/api/client"
 import type { Address } from "@/lib/api/types"
 
 const API_URL = "/api/bff"
-const LOCATION_API = "https://provinces.open-api.vn/api"
+const LOCATION_API = "/api/locations"
 
 interface Province {
-    code: number
+    code: string
     name: string
-}
-interface District {
-    code: number
-    name: string
+    name_with_type: string
 }
 interface Ward {
-    code: number
+    code: string
     name: string
+    name_with_type: string
 }
 
 export default function ProfilePage() {
@@ -77,8 +76,6 @@ export default function ProfilePage() {
         address: "",
         ward: "",
         wardName: "",
-        district: "",
-        districtName: "",
         city: "",
         cityName: "",
         note: "",
@@ -87,10 +84,8 @@ export default function ProfilePage() {
 
     // Location dropdown data
     const [provinces, setProvinces] = useState<Province[]>([])
-    const [districts, setDistricts] = useState<District[]>([])
     const [wards, setWards] = useState<Ward[]>([])
     const [loadingProvinces, setLoadingProvinces] = useState(false)
-    const [loadingDistricts, setLoadingDistricts] = useState(false)
     const [loadingWards, setLoadingWards] = useState(false)
 
     useEffect(() => {
@@ -108,10 +103,10 @@ export default function ProfilePage() {
         const fetchProvinces = async () => {
             setLoadingProvinces(true)
             try {
-                const response = await fetch(`${LOCATION_API}/p/`)
+                const response = await fetch(`${LOCATION_API}/provinces`)
                 if (response.ok) {
-                    const data = await response.json()
-                    setProvinces(data || [])
+                    const result = await response.json()
+                    setProvinces(result.data || [])
                 }
             } catch (err) {
                 console.error("Failed to fetch provinces:", err)
@@ -122,58 +117,28 @@ export default function ProfilePage() {
         fetchProvinces()
     }, [])
 
-    // Fetch districts when province changes
+    // Fetch wards when province changes
     useEffect(() => {
         if (!addressForm.city) {
-            setDistricts([])
             setWards([])
             return
         }
-        const fetchDistricts = async () => {
-            setLoadingDistricts(true)
-            setDistricts([])
-            setWards([])
-            setAddressForm((prev) => ({
-                ...prev,
-                district: "",
-                districtName: "",
-                ward: "",
-                wardName: "",
-            }))
-            try {
-                const response = await fetch(
-                    `${LOCATION_API}/p/${addressForm.city}?depth=2`,
-                )
-                if (response.ok) {
-                    const data = await response.json()
-                    setDistricts(data.districts || [])
-                }
-            } catch (err) {
-                console.error("Failed to fetch districts:", err)
-            } finally {
-                setLoadingDistricts(false)
-            }
-        }
-        fetchDistricts()
-    }, [addressForm.city])
 
-    // Fetch wards when district changes
-    useEffect(() => {
-        if (!addressForm.district) {
-            setWards([])
-            return
-        }
         const fetchWards = async () => {
             setLoadingWards(true)
             setWards([])
-            setAddressForm((prev) => ({ ...prev, ward: "", wardName: "" }))
+            setAddressForm((prev) => ({
+                ...prev,
+                ward: "",
+            }))
+
             try {
                 const response = await fetch(
-                    `${LOCATION_API}/d/${addressForm.district}?depth=2`,
+                    `${LOCATION_API}/wards?provinceCode=${addressForm.city}`,
                 )
                 if (response.ok) {
-                    const data = await response.json()
-                    setWards(data.wards || [])
+                    const result = await response.json()
+                    setWards(result.data || [])
                 }
             } catch (err) {
                 console.error("Failed to fetch wards:", err)
@@ -181,8 +146,31 @@ export default function ProfilePage() {
                 setLoadingWards(false)
             }
         }
+
         fetchWards()
-    }, [addressForm.district])
+    }, [addressForm.city])
+
+    useEffect(() => {
+        if (!addressForm.wardName || wards.length === 0 || addressForm.ward) {
+            return
+        }
+
+        const matchingWard = wards.find(
+            (ward) =>
+                normalizeLocationName(ward.name) ===
+                normalizeLocationName(addressForm.wardName),
+        )
+
+        if (!matchingWard) {
+            return
+        }
+
+        setAddressForm((prev) => ({
+            ...prev,
+            ward: String(matchingWard.code),
+            wardName: matchingWard.name_with_type,
+        }))
+    }, [addressForm.wardName, addressForm.ward, wards])
 
     const refreshAddresses = async () => {
         if (!user?.id) return
@@ -284,7 +272,7 @@ export default function ProfilePage() {
     if (!mounted || isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         )
     }
@@ -308,8 +296,6 @@ export default function ProfilePage() {
             address: "",
             ward: "",
             wardName: "",
-            district: "",
-            districtName: "",
             city: "",
             cityName: "",
             note: "",
@@ -334,7 +320,7 @@ export default function ProfilePage() {
         setEditingAddress(addr)
         setShowAddressForm(true)
 
-        // Try to match existing province/district/ward names to dropdown IDs
+        // Try to match existing province name to dropdown ID
         const matchingProvince = provinces.find(
             (p) =>
                 normalizeLocationName(p.name) ===
@@ -348,8 +334,6 @@ export default function ProfilePage() {
             address: addr.address,
             ward: "",
             wardName: addr.ward,
-            district: "",
-            districtName: addr.district,
             city: matchingProvince ? String(matchingProvince.code) : "",
             cityName: addr.city,
             note: addr.note || "",
@@ -397,11 +381,16 @@ export default function ProfilePage() {
             setAddressError("Không tìm thấy thông tin khách hàng.")
             return
         }
+
+        if (!addressForm.city || !addressForm.ward) {
+            setAddressError("Vui lòng chọn Tỉnh/Thành phố và Xã/Phường/Thị trấn.")
+            return
+        }
+
+        setAddressError(null)
         setSavingAddress(true)
         try {
             const cityToSend = addressForm.cityName || addressForm.city
-            const districtToSend =
-                addressForm.districtName || addressForm.district
             const wardToSend = addressForm.wardName || addressForm.ward
 
             if (editingAddress) {
@@ -413,7 +402,6 @@ export default function ProfilePage() {
                     phone: addressForm.phone,
                     address: addressForm.address,
                     ward: wardToSend,
-                    district: districtToSend,
                     city: cityToSend,
                     note: addressForm.note || undefined,
                     isDefault: addressForm.isDefault,
@@ -430,7 +418,6 @@ export default function ProfilePage() {
                     phone: addressForm.phone,
                     address: addressForm.address,
                     ward: wardToSend,
-                    district: districtToSend,
                     city: cityToSend,
                     note: addressForm.note || undefined,
                     setAsDefault: addressForm.isDefault,
@@ -447,39 +434,23 @@ export default function ProfilePage() {
         }
     }
 
-    const handleProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const provinceId = e.target.value
+    const handleProvinceSelect = (provinceId: string) => {
         const province = provinces.find((p) => String(p.code) === provinceId)
         setAddressForm((prev) => ({
             ...prev,
             city: provinceId,
-            cityName: province?.name || "",
-            district: "",
-            districtName: "",
+            cityName: province?.name_with_type || "",
             ward: "",
             wardName: "",
         }))
     }
 
-    const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const districtId = e.target.value
-        const district = districts.find((d) => String(d.code) === districtId)
-        setAddressForm((prev) => ({
-            ...prev,
-            district: districtId,
-            districtName: district?.name || "",
-            ward: "",
-            wardName: "",
-        }))
-    }
-
-    const handleWardChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const wardId = e.target.value
+    const handleWardSelect = (wardId: string) => {
         const ward = wards.find((w) => String(w.code) === wardId)
         setAddressForm((prev) => ({
             ...prev,
             ward: wardId,
-            wardName: ward?.name || "",
+            wardName: ward?.name_with_type || "",
         }))
     }
 
@@ -537,8 +508,8 @@ export default function ProfilePage() {
 
             <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center gap-6 mb-8">
-                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="w-10 h-10 text-blue-600" />
+                    <div className="w-20 h-20 bg-nav-hover rounded-full flex items-center justify-center">
+                        <User className="w-10 h-10 text-primary" />
                     </div>
                     <div>
                         <h2 className="text-2xl font-semibold">
@@ -587,10 +558,10 @@ export default function ProfilePage() {
                                                     e.target.checked,
                                                 )
                                             }
-                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-ring"
                                         />
                                         {acceptsMarketing ? (
-                                            <Bell className="w-5 h-5 text-blue-600" />
+                                            <Bell className="w-5 h-5 text-primary" />
                                         ) : (
                                             <BellOff className="w-5 h-5 text-gray-400" />
                                         )}
@@ -628,7 +599,7 @@ export default function ProfilePage() {
                                                 )
                                             }
                                         }}
-                                        className="px-4 py-1.5 text-sm font-medium bg-black text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50"
+                                        className="px-4 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
                                     >
                                         {togglingNewsletter
                                             ? "Đang lưu..."
@@ -697,7 +668,7 @@ export default function ProfilePage() {
                                                 )
                                             }
                                             required
-                                            className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                            className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-ring focus:border-ring"
                                             placeholder="Nhập mật khẩu hiện tại"
                                         />
                                         <button
@@ -730,7 +701,7 @@ export default function ProfilePage() {
                                         }
                                         required
                                         minLength={6}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-ring focus:border-ring"
                                         placeholder="Ít nhất 6 ký tự"
                                     />
                                 </div>
@@ -751,7 +722,7 @@ export default function ProfilePage() {
                                         }
                                         required
                                         minLength={6}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-ring focus:border-ring"
                                         placeholder="Nhập lại mật khẩu mới"
                                     />
                                     {confirmNewPassword &&
@@ -870,7 +841,7 @@ export default function ProfilePage() {
                                         </div>
                                         <div className="text-sm text-gray-600">
                                             {addr.address}, {addr.ward},{" "}
-                                            {addr.district}, {addr.city}
+                                            {addr.city}
                                         </div>
                                         {addr.note && (
                                             <div className="text-xs text-gray-500 mt-1">
@@ -987,79 +958,33 @@ export default function ProfilePage() {
                                                     </span>
                                                 </div>
                                             ) : (
-                                                <select
+                                                <SearchableSelect
                                                     value={addressForm.city}
-                                                    onChange={
-                                                        handleProvinceChange
+                                                    onValueChange={
+                                                        handleProvinceSelect
                                                     }
-                                                    required
                                                     disabled={
                                                         provinces.length === 0
                                                     }
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                >
-                                                    <option value="">
-                                                        -- Chọn Tỉnh/Thành phố
-                                                        --
-                                                    </option>
-                                                    {provinces.map((p) => (
-                                                        <option
-                                                            key={p.code}
-                                                            value={p.code}
-                                                        >
-                                                            {p.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            )}
-                                        </div>
-
-                                        {/* District dropdown */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Quận/Huyện *
-                                            </label>
-                                            {loadingDistricts ? (
-                                                <div className="flex items-center gap-2 py-2">
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                    <span className="text-sm text-gray-500">
-                                                        Đang tải...
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <select
-                                                    value={addressForm.district}
-                                                    onChange={
-                                                        handleDistrictChange
-                                                    }
-                                                    required
-                                                    disabled={
-                                                        !addressForm.city ||
-                                                        districts.length === 0
-                                                    }
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                >
-                                                    <option value="">
-                                                        {addressForm.city
-                                                            ? "-- Chọn Quận/Huyện --"
-                                                            : "-- Chọn Tỉnh/Thành phố trước --"}
-                                                    </option>
-                                                    {districts.map((d) => (
-                                                        <option
-                                                            key={d.code}
-                                                            value={d.code}
-                                                        >
-                                                            {d.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                    placeholder="-- Chọn Tỉnh/Thành phố --"
+                                                    searchPlaceholder="Tìm tỉnh/thành phố"
+                                                    emptyText="Không tìm thấy tỉnh/thành phố"
+                                                    options={provinces.map(
+                                                        (province) => ({
+                                                            value: String(
+                                                                province.code,
+                                                            ),
+                                                            label: province.name_with_type,
+                                                        }),
+                                                    )}
+                                                />
                                             )}
                                         </div>
 
                                         {/* Ward dropdown */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Phường/Xã
+                                                Xã/Phường/Thị trấn *
                                             </label>
                                             {loadingWards ? (
                                                 <div className="flex items-center gap-2 py-2">
@@ -1069,29 +994,27 @@ export default function ProfilePage() {
                                                     </span>
                                                 </div>
                                             ) : (
-                                                <select
+                                                <SearchableSelect
                                                     value={addressForm.ward}
-                                                    onChange={handleWardChange}
+                                                    onValueChange={handleWardSelect}
                                                     disabled={
-                                                        !addressForm.district ||
+                                                        !addressForm.city ||
                                                         wards.length === 0
                                                     }
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                >
-                                                    <option value="">
-                                                        {addressForm.district
-                                                            ? "-- Chọn Phường/Xã --"
-                                                            : "-- Chọn Quận/Huyện trước --"}
-                                                    </option>
-                                                    {wards.map((w) => (
-                                                        <option
-                                                            key={w.code}
-                                                            value={w.code}
-                                                        >
-                                                            {w.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                    placeholder={
+                                                        addressForm.city
+                                                            ? "-- Chọn Xã/Phường/Thị trấn --"
+                                                            : "-- Chọn Tỉnh/Thành phố trước --"
+                                                    }
+                                                    searchPlaceholder="Tìm xã/phường/thị trấn"
+                                                    emptyText="Không tìm thấy xã/phường/thị trấn"
+                                                    options={wards.map((ward) => ({
+                                                        value: String(
+                                                            ward.code,
+                                                        ),
+                                                        label: ward.name_with_type,
+                                                    }))}
+                                                />
                                             )}
                                         </div>
 

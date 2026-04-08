@@ -584,7 +584,7 @@ async function addressCreate(params: {
     phone: string
     address: string
     ward: string
-    district: string
+    district?: string
     city: string
     note?: string
     setAsDefault?: boolean
@@ -600,7 +600,6 @@ async function addressCreate(params: {
                     phone: params.phone,
                     address: params.address,
                     ward: params.ward,
-                    district: params.district,
                     city: params.city,
                     note: params.note,
                     setAsDefault: params.setAsDefault ?? false,
@@ -621,7 +620,7 @@ async function addressUpdate(params: {
     phone: string
     address: string
     ward: string
-    district: string
+    district?: string
     city: string
     note?: string
     isDefault: boolean
@@ -637,7 +636,6 @@ async function addressUpdate(params: {
                     phone: params.phone,
                     address: params.address,
                     ward: params.ward,
-                    district: params.district,
                     city: params.city,
                     note: params.note,
                     isDefault: params.isDefault,
@@ -743,14 +741,19 @@ async function saleCampaignBrowse(
     const endpoint = `/api/sale-campaigns${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
 
     try {
-        const result = await apiFetch<{
-            campaigns: { items: SaleCampaign[]; totalCount: number }
-        }>(endpoint)
+        const result = await apiFetch<Record<string, unknown>>(endpoint)
+        // Handle both camelCase and PascalCase response shapes
+        const campaigns = (result.campaigns ?? result.Campaigns) as
+            | { items?: SaleCampaign[]; Items?: SaleCampaign[]; totalCount?: number; TotalCount?: number }
+            | undefined
+        const items = campaigns?.items ?? campaigns?.Items ?? []
+        const totalCount = campaigns?.totalCount ?? campaigns?.TotalCount ?? 0
         return {
-            data: result.campaigns?.items || [],
-            totalCount: result.campaigns?.totalCount || 0,
+            data: items as SaleCampaign[],
+            totalCount: totalCount as number,
         }
-    } catch {
+    } catch (e) {
+        console.error("[saleCampaignBrowse] Error:", e)
         return { data: [], totalCount: 0 }
     }
 }

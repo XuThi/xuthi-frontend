@@ -37,7 +37,7 @@ const OrderDetails = async ({
     const shippingAddressObj = {
         fullName: order.customerName,
         addressLine1: order.shippingAddress,
-        addressLine2: `${order.shippingWard}, ${order.shippingDistrict}`,
+        addressLine2: `${order.shippingWard}`,
         city: order.shippingCity,
         state: "", // Not used
         postalCode: "",

@@ -1,28 +1,34 @@
-import "@/app/globals.css";
-
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { Playfair_Display, Be_Vietnam_Pro } from "next/font/google";
 import { Suspense } from "react";
 import Image from "next/image";
+import { cookies } from "next/headers";
 import { CartProvider } from "@/app/cart/cart-context";
 import { CartSidebar } from "@/app/cart/cart-sidebar";
 import { CartButton } from "@/app/cart-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Footer } from "@/app/footer";
 import { Navbar } from "@/app/navbar";
+import { HeaderWrapper, FooterWrapper } from "@/components/layout-wrapper";
 import { AppLink } from "@/components/app-link";
 import { commerce } from "@/lib/commerce";
 import { getCartCookieJson, getSessionId } from "@/lib/cookies";
 import { UserNav } from "@/components/user-nav";
 import { Providers } from "@/app/providers";
 
-const geistSans = Geist({
-	variable: "--font-geist-sans",
-	subsets: ["latin"],
+const headingFont = Playfair_Display({
+	variable: "--font-heading",
+	subsets: ["latin", "vietnamese"],
+	weight: ["400", "500", "600", "700"],
+	display: "swap",
 });
 
-const geistMono = Geist_Mono({
-	variable: "--font-geist-mono",
-	subsets: ["latin"],
+const bodyFont = Be_Vietnam_Pro({
+	variable: "--font-body",
+	subsets: ["latin", "vietnamese"],
+	weight: ["300", "400", "500", "600", "700"],
+	display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -32,6 +38,31 @@ export const metadata: Metadata = {
 		icon: "https://res.cloudinary.com/dxlhncwp0/image/upload/v1769941817/logo_qlelti.svg",
 	},
 };
+
+const THEME_COOKIE_KEY = "xuthi_theme";
+const DEFAULT_THEME = "monochrome";
+const VALID_THEMES = new Set(["amber", "monochrome"]);
+
+function normalizeTheme(theme: string | undefined) {
+	return VALID_THEMES.has(theme || "") ? (theme as string) : DEFAULT_THEME;
+}
+
+function ThemeCookieScript({ theme }: { theme: string }) {
+	return (
+		<script
+			dangerouslySetInnerHTML={{
+				__html: `document.documentElement.setAttribute("data-theme", "${theme}")`,
+			}}
+		/>
+	);
+}
+
+async function RequestThemeScript() {
+	const cookieStore = await cookies();
+	const cookieTheme = cookieStore.get(THEME_COOKIE_KEY)?.value;
+	const theme = normalizeTheme(cookieTheme);
+	return <ThemeCookieScript theme={theme} />;
+}
 
 async function getInitialCart() {
 	const cartCookie = await getCartCookieJson();
@@ -64,31 +95,36 @@ async function CartProviderWrapper({ children }: { children: React.ReactNode }) 
 	return (
 		<CartProvider initialCart={cart} initialCartId={cartId}>
 			<div className="flex min-h-screen flex-col">
-				<header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-						<div className="flex items-center justify-between h-16">
-							<div className="flex items-center gap-8">
-								<AppLink prefetch={"eager"} href="/" className="flex items-center gap-2 text-xl font-bold">
-								<Image
-									src="https://res.cloudinary.com/dxlhncwp0/image/upload/v1769941817/logo_qlelti.svg"
-									alt="XuThi"
-									width={32}
-									height={32}
-									priority
-								/>
-								<span>XuThi Store</span>
-							</AppLink>
-								<Navbar />
-							</div>
-							<div className="flex items-center gap-4">
-								<CartButton />
-								<UserNav />
+				<HeaderWrapper>
+					<header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
+						<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+							<div className="flex items-center justify-between h-16">
+								<div className="flex items-center gap-8">
+									<AppLink prefetch={"eager"} href="/" className="flex items-center gap-2 text-xl font-bold">
+									<Image
+										src="https://res.cloudinary.com/dxlhncwp0/image/upload/v1769941817/logo_qlelti.svg"
+										alt="XuThi"
+										width={32}
+										height={32}
+										priority
+									/>
+									<span>XuThi Store</span>
+								</AppLink>
+									<Navbar />
+								</div>
+								<div className="flex items-center gap-4">
+									<ThemeToggle />
+									<CartButton />
+									<UserNav />
+								</div>
 							</div>
 						</div>
-					</div>
-				</header>
+					</header>
+				</HeaderWrapper>
 				<div className="flex-1">{children}</div>
-				<Footer />
+				<FooterWrapper>
+					<Footer />
+				</FooterWrapper>
 			</div>
 			<CartSidebar />
 		</CartProvider>
@@ -101,8 +137,11 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en">
-			<body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+		<html lang="vi" data-theme={DEFAULT_THEME}>
+			<body className={`${headingFont.variable} ${bodyFont.variable} font-sans antialiased`}>
+				<Suspense fallback={null}>
+					<RequestThemeScript />
+				</Suspense>
                 <Providers>
 				    <Suspense>
 					    <CartProviderWrapper>{children}</CartProviderWrapper>

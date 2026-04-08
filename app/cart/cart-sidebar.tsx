@@ -38,7 +38,7 @@ export function CartSidebar() {
 
                 {items.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12">
-                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-nav-hover">
                             <ShoppingBag className="h-10 w-10 text-muted-foreground" />
                         </div>
                         <div className="text-center">
@@ -47,7 +47,11 @@ export function CartSidebar() {
                                 {cartT.emptyDescription}
                             </p>
                         </div>
-                        <Button variant="outline" onClick={closeCart}>
+                        <Button
+                            variant="secondary"
+                            onClick={closeCart}
+                            className="bg-nav-hover text-foreground hover:brightness-95"
+                        >
                             {cartT.continueShopping}
                         </Button>
                     </div>
@@ -93,13 +97,13 @@ export function CartSidebar() {
                                         {cartT.checkout}
                                     </AppLink>
                                 </Button>
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="secondary"
+                                    className="w-full h-10 text-sm bg-nav-hover text-foreground hover:brightness-95"
                                     onClick={closeCart}
-                                    className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
                                 >
                                     {cartT.continueShopping}
-                                </button>
+                                </Button>
                             </div>
                         </SheetFooter>
                     </>

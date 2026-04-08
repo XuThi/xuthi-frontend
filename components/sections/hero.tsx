@@ -58,7 +58,7 @@ export function Hero() {
 
     // ── Fetch campaigns ────────────────────────────────────────────────────
     useEffect(() => {
-        const fetch = async () => {
+        const fetchBanners = async () => {
             try {
                 const result = await api.saleCampaignBrowse({
                     isActive: true,
@@ -66,16 +66,25 @@ export function Hero() {
                     pageSize: 10,
                 })
                 const bannerSlides = (result.data || [])
-                    .filter(
-                        (c) =>
-                            typeof c.bannerImageUrl === "string" &&
-                            c.bannerImageUrl.trim().length > 0,
-                    )
-                    .map((c) => ({
-                        image: c.bannerImageUrl!.trim(),
-                        link: c.slug ? `/sale/${c.slug}` : "/collection",
-                        alt: c.name,
-                    }))
+                    .filter((c) => {
+                        const url =
+                            c.bannerImageUrl ??
+                            (c as unknown as Record<string, unknown>)["BannerImageUrl"]
+                        return (
+                            typeof url === "string" && url.trim().length > 0
+                        )
+                    })
+                    .map((c) => {
+                        const url = (
+                            c.bannerImageUrl ??
+                            (c as unknown as Record<string, unknown>)["BannerImageUrl"]
+                        ) as string
+                        return {
+                            image: url.trim(),
+                            link: c.slug ? `/sale/${c.slug}` : "/collection",
+                            alt: c.name,
+                        }
+                    })
                 if (bannerSlides.length > 0) {
                     setSlides(bannerSlides)
                     setVirtualIndex(1)
@@ -86,7 +95,7 @@ export function Hero() {
                 setIsLoaded(true)
             }
         }
-        fetch()
+        fetchBanners()
     }, [])
 
     // ── Infinite loop: jump after clone is shown ───────────────────────────

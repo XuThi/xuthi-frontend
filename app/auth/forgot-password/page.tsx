@@ -54,7 +54,7 @@ export default function ForgotPasswordPage() {
           <div className="space-y-3">
             <button
               onClick={() => { setSent(false); setEmail(''); }}
-              className="text-sm text-blue-600 hover:text-blue-500 font-medium"
+              className="text-sm text-link hover:opacity-80 font-medium"
             >
               Gửi lại với email khác
             </button>
@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-ring focus:border-ring sm:text-sm"
                 placeholder="your@email.com"
               />
             </div>
@@ -118,7 +118,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring disabled:opacity-50"
             >
               {isLoading ? (
                 <>

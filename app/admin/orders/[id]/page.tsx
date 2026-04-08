@@ -15,13 +15,6 @@ import {
 } from "@/components/ui/table"
 import { Separator } from "@/components/ui/separator"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import {
     ArrowLeft,
     Loader2,
     Package,
@@ -31,6 +24,7 @@ import {
     Clock,
 } from "lucide-react"
 import Link from "next/link"
+import { getOrderStatusMeta } from "@/lib/admin/presentation"
 
 const API_URL = "/api/bff"
 
@@ -56,7 +50,6 @@ interface Order {
     customerPhone: string
     shippingAddress: string
     shippingCity: string
-    shippingDistrict: string
     shippingWard: string
     shippingNote?: string
     subtotal: number
@@ -74,39 +67,27 @@ interface Order {
 const statusOptions = [
     {
         value: "Pending",
-        label: "Chờ xác nhận",
         icon: Clock,
-        color: "bg-yellow-100 text-yellow-800",
     },
     {
         value: "Confirmed",
-        label: "Đã xác nhận",
         icon: CheckCircle,
-        color: "bg-cyan-100 text-cyan-800",
     },
     {
         value: "Processing",
-        label: "Đang xử lý",
         icon: Package,
-        color: "bg-blue-100 text-blue-800",
     },
     {
         value: "Shipped",
-        label: "Đang giao",
         icon: Truck,
-        color: "bg-purple-100 text-purple-800",
     },
     {
         value: "Delivered",
-        label: "Đã giao",
         icon: CheckCircle,
-        color: "bg-green-100 text-green-800",
     },
     {
         value: "Cancelled",
-        label: "Đã hủy",
         icon: XCircle,
-        color: "bg-red-100 text-red-800",
     },
 ]
 
@@ -123,17 +104,15 @@ function getStatusButtonClass(
     isActive: boolean,
     isDisabled: boolean,
 ) {
-    const tone = statusColor.replace("bg-", "border-")
-
     if (isActive) {
-        return `${statusColor} ${tone} border`
+        return `${statusColor} border`
     }
 
     if (isDisabled) {
         return "opacity-50 cursor-not-allowed"
     }
 
-    return `${statusColor} ${tone} border opacity-90 hover:opacity-100`
+    return `${statusColor} border opacity-90 hover:opacity-100`
 }
 
 function formatCurrency(amount: number) {
@@ -260,8 +239,7 @@ export default function OrderDetailPage() {
         )
     }
 
-    const currentStatus =
-        statusOptions.find((s) => s.value === order.status) || statusOptions[0]
+    const currentStatus = getOrderStatusMeta(order.status)
     const currentStatusIndex = statusSequence.indexOf(
         order.status as (typeof statusSequence)[number],
     )
@@ -303,7 +281,10 @@ export default function OrderDetailPage() {
                         {new Date(order.createdAt).toLocaleString("vi-VN")}
                     </p>
                 </div>
-                <Badge className={`text-base px-4 py-1 ${currentStatus.color}`}>
+                <Badge
+                    variant="outline"
+                    className={`text-base px-4 py-1 ${currentStatus.badgeClass}`}
+                >
                     {currentStatus.label}
                 </Badge>
             </div>
@@ -322,6 +303,7 @@ export default function OrderDetailPage() {
                                 updating ||
                                 isActive ||
                                 !canTransitionTo(status.value)
+                            const statusMeta = getOrderStatusMeta(status.value)
 
                             return (
                                 <Button
@@ -331,13 +313,13 @@ export default function OrderDetailPage() {
                                     onClick={() => updateStatus(status.value)}
                                     disabled={isDisabled}
                                     className={getStatusButtonClass(
-                                        status.color,
+                                        statusMeta.badgeClass,
                                         isActive,
                                         isDisabled,
                                     )}
                                 >
                                     <StatusIcon className="w-4 h-4 mr-2" />
-                                    {status.label}
+                                    {statusMeta.label}
                                 </Button>
                             )
                         })}
@@ -502,8 +484,7 @@ export default function OrderDetailPage() {
                                     <div className="text-sm text-muted-foreground">
                                         {order.shippingAddress}
                                         <br />
-                                        {order.shippingWard},{" "}
-                                        {order.shippingDistrict}
+                                        {order.shippingWard}
                                         <br />
                                         {order.shippingCity}
                                     </div>

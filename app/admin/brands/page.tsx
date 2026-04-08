@@ -10,15 +10,14 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { api } from "@/lib/api/client"
-import { Badge } from "@/components/ui/badge"
 import DeleteBrandButton from "./delete-brand-button"
 
 export default async function BrandsPage() {
     const { data: brands } = await api.brandBrowse()
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="space-y-4">
+            <div className="flex w-full items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Thương hiệu</h1>
                     <p className="text-muted-foreground">

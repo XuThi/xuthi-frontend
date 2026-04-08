@@ -9,9 +9,10 @@ import { commerce } from "@/lib/commerce"
 function CollectionHeader({ collection }: { collection: Category }) {
     return (
         <section className="relative overflow-hidden bg-secondary/30">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="py-12 sm:py-16 lg:py-20">
-                    <div className="max-w-2xl">
+            <div className="w-full px-4 sm:px-6 lg:px-8">
+                <div className="py-12 sm:py-16 lg:py-20 grid gap-8 lg:grid-cols-[240px_minmax(0,72rem)_260px] lg:justify-center">
+                    <div className="hidden lg:block" />
+                    <div className="min-w-0">
                         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-foreground">
                             {collection.name}
                         </h1>
@@ -23,6 +24,7 @@ function CollectionHeader({ collection }: { collection: Category }) {
                             </p>
                         )}
                     </div>
+                    <div className="hidden lg:block" />
                 </div>
             </div>
             {collection.image && (
@@ -43,7 +45,7 @@ function CollectionHeader({ collection }: { collection: Category }) {
 
 function ProductGridSkeleton() {
     return (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <section className="w-full px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {Array.from({ length: 6 }).map((_, i) => (
                     <div key={`skeleton-${i}`}>
@@ -79,7 +81,7 @@ export default async function CollectionPage(props: {
         notFound()
     }
 
-    const pageSize = 12
+    const pageSize = 100
     const productsResult = await commerce.productBrowse({
         categoryId: collection.id,
         active: true,

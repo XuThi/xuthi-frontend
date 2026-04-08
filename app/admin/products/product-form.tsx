@@ -433,7 +433,6 @@ export default function ProductForm({ initialData }: ProductFormProps) {
         replaceVariants(newVariants)
     }
 
-    // Fix #9: Improved parsing for variant option values
     const parseOptionValues = (input: string): string[] => {
         // Support comma-separated and Enter-separated values
         return (
@@ -476,7 +475,7 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                 payload.variants = [
                     {
                         id: initialData?.variants?.[0]?.id,
-                        sku: data.simpleSku,
+                        sku: data.simpleSku?.trim() || "",
                         price: data.simplePrice,
                         compareAtPrice: data.simpleCompareAtPrice,
                         stockQuantity: data.simpleStock,
@@ -542,7 +541,7 @@ export default function ProductForm({ initialData }: ProductFormProps) {
         <Form {...form}>
             <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-8 w-full max-w-5xl"
+                className="space-y-8 w-full max-w-none"
             >
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -783,6 +782,10 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                                                 <FormControl>
                                                     <Input {...field} />
                                                 </FormControl>
+                                                <FormDescription>
+                                                    Để trống để hệ thống tự tạo
+                                                    SKU.
+                                                </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -1026,27 +1029,35 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                                         <RefreshCw className="mr-2 h-4 w-4" />{" "}
                                         Tạo các biến thể
                                     </Button>
+                                    {form.formState.errors.variants?.message && (
+                                        <p className="text-sm text-destructive">
+                                            {
+                                                form.formState.errors.variants
+                                                    .message
+                                            }
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* Computed Variants Table */}
                                 {variantFields.length > 0 && (
                                     <div className="rounded-lg border overflow-x-auto">
-                                        <Table className="w-full min-w-245 table-fixed">
+                                        <Table className="w-full min-w-200 table-fixed">
                                             <TableHeader>
                                                 <TableRow>
-                                                    <TableHead className="w-[16%] whitespace-nowrap">
+                                                    <TableHead className="w-[6%] whitespace-nowrap">
                                                         Biến thể
                                                     </TableHead>
-                                                    <TableHead className="w-[13%] whitespace-nowrap">
+                                                    <TableHead className="w-[6%] whitespace-nowrap">
                                                         Giá
                                                     </TableHead>
-                                                    <TableHead className="w-[13%] whitespace-nowrap">
+                                                    <TableHead className="w-[6%] whitespace-nowrap">
                                                         Giá gốc
                                                     </TableHead>
-                                                    <TableHead className="w-[15%] whitespace-nowrap">
+                                                    <TableHead className="w-[8%] whitespace-nowrap">
                                                         SKU
                                                     </TableHead>
-                                                    <TableHead className="w-[9%] whitespace-nowrap">
+                                                    <TableHead className="w-[4%] whitespace-nowrap">
                                                         Tồn kho
                                                     </TableHead>
                                                 </TableRow>

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Voucher, VoucherType } from "@/lib/api/types"
+import { getVoucherStatusBadgeClass } from "@/lib/admin/presentation"
 
 const API_URL = "/api/bff"
 
@@ -89,9 +90,14 @@ export default function VouchersPage() {
     }
 
     return (
-        <div className="w-full">
+        <div className="space-y-4">
             <div className="flex w-full items-center justify-between">
-                <h1 className="text-2xl font-bold">Quản lý Voucher</h1>
+                <div>
+                    <h1 className="text-2xl font-bold">Quản lý Voucher</h1>
+                    <p className="text-muted-foreground">
+                        Theo dõi hiệu suất và thời hạn của từng mã giảm giá.
+                    </p>
+                </div>
                 <Button asChild>
                     <Link href="/admin/vouchers/new">
                         <Plus className="mr-2 h-4 w-4" /> Thêm Voucher
@@ -99,7 +105,7 @@ export default function VouchersPage() {
                 </Button>
             </div>
 
-            <div className="mt-8 rounded-md border">
+            <div className="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -176,11 +182,10 @@ export default function VouchersPage() {
                                         </TableCell>
                                         <TableCell>
                                             <Badge
-                                                variant={
-                                                    v.isActive
-                                                        ? "default"
-                                                        : "secondary"
-                                                }
+                                                variant="outline"
+                                                className={getVoucherStatusBadgeClass(
+                                                    v.isActive,
+                                                )}
                                             >
                                                 {v.isActive
                                                     ? "Hoạt động"

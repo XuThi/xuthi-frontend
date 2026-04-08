@@ -1,8 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useParams } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api/client"
 import type { Product } from "@/lib/api/types"
 import ProductForm from "../product-form"
@@ -26,11 +28,18 @@ export default function EditProductPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold">Chỉnh sửa sản phẩm</h1>
-                <p className="text-muted-foreground">
-                    Cập nhật thông tin sản phẩm.
-                </p>
+            <div className="flex items-start gap-4">
+                <Button variant="outline" size="icon" asChild>
+                    <Link href="/admin/products">
+                        <ArrowLeft className="h-4 w-4" />
+                    </Link>
+                </Button>
+                <div>
+                    <h1 className="text-2xl font-bold">Chỉnh sửa sản phẩm</h1>
+                    <p className="text-muted-foreground">
+                        Cập nhật thông tin sản phẩm.
+                    </p>
+                </div>
             </div>
 
             {loading ? (

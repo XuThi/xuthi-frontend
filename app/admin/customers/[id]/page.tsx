@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
     Table,
@@ -13,36 +14,16 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 import type { CustomerDetail, Order } from "@/lib/api/types"
+import {
+    getOrderStatusMeta,
+    getTierBadgeClass,
+    getTierLabel,
+} from "@/lib/admin/presentation"
 
 interface OrderApiResponse {
     orders: Order[]
-}
-
-function normalizeTier(tier: unknown) {
-    return String(tier ?? "").toLowerCase()
-}
-
-function getTierLabel(tier: unknown) {
-    const normalized = normalizeTier(tier)
-    if (normalized === "4" || normalized === "platinum") return "Platinum"
-    if (normalized === "3" || normalized === "gold") return "Gold"
-    if (normalized === "2" || normalized === "silver") return "Silver"
-    return "Standard"
-}
-
-function getTierBadgeClass(tier: unknown) {
-    switch (normalizeTier(tier)) {
-        case "platinum":
-            return "bg-purple-100 text-purple-800 border-purple-300"
-        case "gold":
-            return "bg-amber-100 text-amber-800 border-amber-300"
-        case "silver":
-            return "bg-slate-100 text-slate-800 border-slate-300"
-        default:
-            return "bg-blue-100 text-blue-800 border-blue-300"
-    }
 }
 
 export default function CustomerDetailPage() {
@@ -126,14 +107,21 @@ export default function CustomerDetailPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">{customer.fullName}</h1>
-                    <p className="text-muted-foreground">
-                        Tham gia ngày{" "}
-                        {new Date(customer.createdAt).toLocaleDateString(
-                            "vi-VN",
-                        )}
-                    </p>
+                <div className="flex items-center gap-4">
+                    <Button variant="outline" size="icon" asChild>
+                        <Link href="/admin/customers">
+                            <ArrowLeft className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold">{customer.fullName}</h1>
+                        <p className="text-muted-foreground">
+                            Tham gia ngày{" "}
+                            {new Date(customer.createdAt).toLocaleDateString(
+                                "vi-VN",
+                            )}
+                        </p>
+                    </div>
                 </div>
                 <Badge
                     variant="outline"
@@ -253,7 +241,7 @@ export default function CustomerDetailPage() {
                                         </div>
                                         <div className="text-sm text-muted-foreground">
                                             {addr.address}, {addr.ward},{" "}
-                                            {addr.district}, {addr.city}
+                                            {addr.city}
                                         </div>
                                     </div>
                                 ))
@@ -303,7 +291,24 @@ export default function CustomerDetailPage() {
                                                 order.createdAt,
                                             ).toLocaleString("vi-VN")}
                                         </TableCell>
-                                        <TableCell>{order.status}</TableCell>
+                                        <TableCell>
+                                            {(() => {
+                                                const statusMeta =
+                                                    getOrderStatusMeta(
+                                                        order.status,
+                                                    )
+                                                return (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={
+                                                            statusMeta.badgeClass
+                                                        }
+                                                    >
+                                                        {statusMeta.label}
+                                                    </Badge>
+                                                )
+                                            })()}
+                                        </TableCell>
                                         <TableCell>
                                             {new Intl.NumberFormat("vi-VN", {
                                                 style: "currency",

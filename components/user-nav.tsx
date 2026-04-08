@@ -28,7 +28,7 @@ export function UserNav() {
   // During SSR and initial hydration, render a consistent placeholder
   if (!mounted) {
     return (
-      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+      <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-nav-hover">
         <User className="h-5 w-5" />
       </Button>
     );
@@ -36,7 +36,7 @@ export function UserNav() {
 
   if (isLoading) {
     return (
-      <Button variant="ghost" className="relative h-8 w-8 rounded-full" disabled>
+      <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-nav-hover" disabled>
         <div className="h-5 w-5 animate-pulse bg-gray-200 rounded-full" />
       </Button>
     );
@@ -44,7 +44,7 @@ export function UserNav() {
 
   if (!isAuthenticated) {
     return (
-      <Button variant="ghost" className="relative h-8 w-8 rounded-full" asChild>
+      <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-nav-hover" asChild>
         <Link href="/auth/login">
           <User className="h-5 w-5" />
         </Link>
@@ -64,10 +64,12 @@ export function UserNav() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-nav-hover">
           <Avatar className="h-8 w-8">
             <AvatarImage src={user?.avatarUrl || ""} alt={displayName} />
-            <AvatarFallback>{displayName[0]?.toUpperCase() || "U"}</AvatarFallback>
+            <AvatarFallback className="bg-[#f4f4f4] text-foreground">
+              {displayName[0]?.toUpperCase() || "U"}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -82,20 +84,20 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
+          <DropdownMenuItem asChild className="focus:bg-nav-hover data-highlighted:bg-nav-hover focus:text-foreground data-highlighted:text-foreground">
              <Link href="/profile">
                 <User className="mr-2 h-4 w-4" />
                 <span>Tài khoản</span>
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
+          <DropdownMenuItem asChild className="focus:bg-nav-hover data-highlighted:bg-nav-hover focus:text-foreground data-highlighted:text-foreground">
             <Link href="/orders">
                 <Package className="mr-2 h-4 w-4" />
                 <span>Đơn hàng</span>
             </Link>
           </DropdownMenuItem>
           {isAdmin && (
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem asChild className="focus:bg-nav-hover data-highlighted:bg-nav-hover focus:text-foreground data-highlighted:text-foreground">
                <Link href="/admin">
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   <span>Quản trị</span>
@@ -104,7 +106,7 @@ export function UserNav() {
           )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout}>
+        <DropdownMenuItem onClick={logout} className="focus:bg-nav-hover data-highlighted:bg-nav-hover focus:text-foreground data-highlighted:text-foreground">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Đăng xuất</span>
         </DropdownMenuItem>

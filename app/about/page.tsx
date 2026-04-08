@@ -19,7 +19,7 @@ export default function AboutPage() {
 
       <div className="relative w-full h-fit aspect-video rounded-2xl overflow-hidden mb-10">
         <Image
-          src="https://firebasestorage.googleapis.com/v0/b/xuthi-6f838.appspot.com/o/box1.jpg?alt=media&token=1ea1632a-bd28-4752-961e-81ebc20d1aa7"
+          src="https://res.cloudinary.com/dxlhncwp0/image/upload/v1774888634/box1_ke94l8.jpg"
           alt="XuThi Store"
           fill
           className="object-cover"

@@ -60,6 +60,13 @@ function toSlugId(value: string): string {
         .replace(/(^-|-$)+/g, "")
 }
 
+function normalizeDisplayType(displayType: string | undefined): string {
+    if (displayType === "buttons") return "button"
+    if (displayType === "button") return "button"
+    if (displayType === "color") return "color"
+    return "dropdown"
+}
+
 export default function VariantOptionForm({ initialData, isEdit }: VariantOptionFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -70,7 +77,7 @@ export default function VariantOptionForm({ initialData, isEdit }: VariantOption
             ? {
                   id: initialData.id,
                   name: initialData.name,
-                  displayType: initialData.displayType,
+                  displayType: normalizeDisplayType(initialData.displayType),
                   values: initialData.values.map(v => ({ value: v })),
               }
             : {
@@ -160,7 +167,7 @@ export default function VariantOptionForm({ initialData, isEdit }: VariantOption
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Kiểu hiển thị</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Chọn kiểu hiển thị" />
@@ -168,7 +175,7 @@ export default function VariantOptionForm({ initialData, isEdit }: VariantOption
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="dropdown">Dropdown (Danh sách thả xuống)</SelectItem>
-                                    <SelectItem value="buttons">Buttons (Nút chọn)</SelectItem>
+                                    <SelectItem value="button">Buttons (Nút chọn)</SelectItem>
                                     <SelectItem value="color">Color Swatch (Màu sắc)</SelectItem>
                                 </SelectContent>
                             </Select>

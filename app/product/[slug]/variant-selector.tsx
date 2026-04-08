@@ -347,8 +347,8 @@ export function VariantSelector({
                                                     !isAvailable &&
                                                         "cursor-not-allowed opacity-35",
                                                     isSelected
-                                                        ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
-                                                        : "hover:ring-2 hover:ring-muted-foreground hover:ring-offset-2 hover:ring-offset-background",
+                                                        ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                                                        : "hover:ring-2 hover:ring-primary/50 hover:ring-offset-2 hover:ring-offset-background",
                                                 )}
                                                 style={{
                                                     backgroundColor:
@@ -398,7 +398,7 @@ export function VariantSelector({
                                                     !isAvailable &&
                                                         "cursor-not-allowed opacity-40",
                                                     isSelected
-                                                        ? "border-foreground bg-foreground text-primary-foreground"
+                                                        ? "border-primary bg-primary text-primary-foreground"
                                                         : "border-border bg-background hover:border-muted-foreground",
                                                 )}
                                             >

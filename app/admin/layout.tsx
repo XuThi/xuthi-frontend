@@ -1,5 +1,13 @@
-import AdminNavLinks from "@/app/admin/nav-links"
-import Link from "next/link"
+"use client"
+
+import { AdminSidebar } from "@/app/admin/nav-links"
+import {
+    SidebarInset,
+    SidebarProvider,
+    SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { Separator } from "@/components/ui/separator"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export default function AdminLayout({
     children,
@@ -7,23 +15,21 @@ export default function AdminLayout({
     children: React.ReactNode
 }) {
     return (
-        <div className="flex min-h-screen flex-col md:flex-row">
-            <div className="w-full flex-none md:w-64">
-                <div className="flex h-full flex-col px-3 py-4 md:px-2">
-                    <Link
-                        className="mb-2 flex h-20 items-end justify-start rounded-md bg-blue-600 p-4 md:h-40"
-                        href="/"
-                    >
-                        <div className="w-32 text-white md:w-40">
-                            <h1 className="text-xl font-bold">XuThi Admin</h1>
-                        </div>
-                    </Link>
-                    <div className="flex grow flex-row justify-between space-x-2 md:flex-col md:space-x-0 md:space-y-2">
-                        <AdminNavLinks />
+        <SidebarProvider>
+            <AdminSidebar />
+            <SidebarInset>
+                <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+                    <SidebarTrigger className="-ml-1" />
+                    <Separator orientation="vertical" className="mr-2 h-4!" />
+                    <span className="text-sm font-medium text-muted-foreground">
+                        XuThi Admin
+                    </span>
+                    <div className="ml-auto">
+                        <ThemeToggle />
                     </div>
-                </div>
-            </div>
-            <div className="flex-grow p-6 md:p-12">{children}</div>
-        </div>
+                </header>
+                <div className="flex-1 p-6 md:p-8">{children}</div>
+            </SidebarInset>
+        </SidebarProvider>
     )
 }

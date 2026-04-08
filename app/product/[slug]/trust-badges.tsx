@@ -16,7 +16,7 @@ const defaultBadges: TrustBadge[] = [
 
 export function TrustBadges({ badges = defaultBadges }: { badges?: TrustBadge[] }) {
 	return (
-		<div className="grid grid-cols-3 gap-4 rounded-xl bg-secondary/50 p-4">
+		<div className="grid grid-cols-3 gap-4 rounded-xl bg-[#f4f4f4] p-4 text-[#1a1a1a]">
 			{badges.map((badge) => (
 				<div key={badge.title} className="flex flex-col items-center text-center">
 					<badge.icon className="mb-2 h-5 w-5 text-muted-foreground" />

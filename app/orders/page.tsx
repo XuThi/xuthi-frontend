@@ -57,7 +57,6 @@ interface OrderDetail {
     customerPhone: string
     shippingAddress: string
     shippingCity: string
-    shippingDistrict: string
     shippingWard: string
     shippingNote?: string
     subtotal: number
@@ -92,12 +91,12 @@ const statusConfig: Record<
     confirmed: {
         label: "Đã xác nhận",
         icon: CheckCircle,
-        color: "text-blue-600 bg-blue-50",
+        color: "text-primary bg-primary/5",
     },
     processing: {
         label: "Đang xử lý",
         icon: Package,
-        color: "text-blue-600 bg-blue-50",
+        color: "text-primary bg-primary/5",
     },
     shipped: {
         label: "Đang giao",
@@ -228,7 +227,7 @@ export default function OrdersPage() {
     if (!mounted || isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         )
     }
@@ -243,7 +242,7 @@ export default function OrdersPage() {
         <div className="max-w-4xl mx-auto px-4 py-8">
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                    <ShoppingBag className="w-8 h-8 text-blue-600" />
+                    <ShoppingBag className="w-8 h-8 text-primary" />
                     <h1 className="text-3xl font-bold">Đơn hàng của tôi</h1>
                 </div>
                 <button
@@ -260,7 +259,7 @@ export default function OrdersPage() {
 
             {loadingOrders ? (
                 <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                     <span className="ml-3 text-gray-600">
                         Đang tải đơn hàng...
                     </span>
@@ -287,7 +286,7 @@ export default function OrdersPage() {
                     </p>
                     <Link
                         href="/"
-                        className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                     >
                         Mua sắm ngay
                     </Link>
@@ -359,7 +358,7 @@ export default function OrdersPage() {
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-lg font-semibold text-blue-600">
+                                            <p className="text-lg font-semibold text-primary">
                                                 {formatCurrency(order.total)}
                                             </p>
                                         </div>
@@ -498,7 +497,6 @@ export default function OrdersPage() {
                                 <p className="text-gray-600">
                                     {selectedOrder.shippingAddress},{" "}
                                     {selectedOrder.shippingWard},{" "}
-                                    {selectedOrder.shippingDistrict},{" "}
                                     {selectedOrder.shippingCity}
                                 </p>
                                 {selectedOrder.shippingNote && (
@@ -542,7 +540,7 @@ export default function OrdersPage() {
                                 )}
                                 <div className="flex justify-between font-semibold text-lg pt-2 border-t">
                                     <span>Tổng cộng:</span>
-                                    <span className="text-blue-600">
+                                    <span className="text-primary">
                                         {formatCurrency(selectedOrder.total)}
                                     </span>
                                 </div>

@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api/client"
 import type { SaleCampaign } from "@/lib/api/types"
+import { getSaleCampaignStatusMeta } from "@/lib/admin/presentation"
 
 export default function SaleCampaignsPage() {
     const [campaigns, setCampaigns] = useState<SaleCampaign[]>([])
@@ -51,7 +52,7 @@ export default function SaleCampaignsPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Sale Campaigns</h1>
@@ -93,6 +94,14 @@ export default function SaleCampaignsPage() {
                         ) : (
                             campaigns.map((campaign) => (
                                 <TableRow key={campaign.id}>
+                                    {(() => {
+                                        const statusMeta =
+                                            getSaleCampaignStatusMeta(
+                                                campaign.isRunning,
+                                                campaign.isUpcoming,
+                                            )
+                                        return (
+                                            <>
                                     <TableCell className="font-medium">
                                         {campaign.name}
                                     </TableCell>
@@ -107,19 +116,10 @@ export default function SaleCampaignsPage() {
                                     </TableCell>
                                     <TableCell>
                                         <Badge
-                                            variant={
-                                                campaign.isRunning
-                                                    ? "default"
-                                                    : campaign.isUpcoming
-                                                      ? "secondary"
-                                                      : "outline"
-                                            }
+                                            variant="outline"
+                                            className={statusMeta.badgeClass}
                                         >
-                                            {campaign.isRunning
-                                                ? "Đang diễn ra"
-                                                : campaign.isUpcoming
-                                                  ? "Sắp diễn ra"
-                                                  : "Đã kết thúc"}
+                                            {statusMeta.label}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>{campaign.itemCount}</TableCell>
@@ -148,6 +148,9 @@ export default function SaleCampaignsPage() {
                                             </Button>
                                         </div>
                                     </TableCell>
+                                            </>
+                                        )
+                                    })()}
                                 </TableRow>
                             ))
                         )}

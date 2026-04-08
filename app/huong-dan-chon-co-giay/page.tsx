@@ -27,7 +27,7 @@ export default function ShoeSizeGuidePage() {
           </p>
           <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden border">
             <Image
-              src="https://firebasestorage.googleapis.com/v0/b/xuthi-6f838.appspot.com/o/cach-do-size-giay-2.webp?alt=media&token=e6e0fe80-d52b-4035-bb00-a08b1723ee30"
+              src="https://res.cloudinary.com/dxlhncwp0/image/upload/v1774888634/cach-do-size-giay-2_ga1azk.webp"
               alt="Cách đo size giày - Bước 1"
               fill
               className="object-contain bg-white"
@@ -43,7 +43,7 @@ export default function ShoeSizeGuidePage() {
           </p>
           <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden border">
             <Image
-              src="https://firebasestorage.googleapis.com/v0/b/xuthi-6f838.appspot.com/o/z5439768381427_93de4527b45ecdd35288040eea2e3d5f.jpg?alt=media&token=7ca86ac0-fe9b-455f-a155-bc71b3510f9f"
+              src="https://res.cloudinary.com/dxlhncwp0/image/upload/v1774888633/z5439768381427_93de4527b45ecdd35288040eea2e3d5f_r4owpa.jpg"
               alt="Bảng size giày XuThi"
               fill
               className="object-contain bg-white"
@@ -54,7 +54,7 @@ export default function ShoeSizeGuidePage() {
       </section>
 
       <div className="mt-10 p-6 bg-muted/50 rounded-2xl">
-        <h3 className="font-semibold mb-2">💡 Mẹo nhỏ</h3>
+        <h3 className="font-semibold mb-2">Mẹo nhỏ</h3>
         <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
           <li>Nên đo chân vào buổi chiều hoặc tối khi chân hơi phồng lên — đây là kích thước thực tế nhất.</li>
           <li>Đo cả hai chân và chọn kích thước của chân lớn hơn.</li>

@@ -66,13 +66,13 @@ export default function VerifyEmailPage() {
     }, [searchParams, refreshUser])
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary/5 to-secondary py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md w-full">
                 <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
                     {status === "loading" && (
                         <>
-                            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                            <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                                <Loader2 className="w-8 h-8 text-primary animate-spin" />
                             </div>
                             <h2 className="text-2xl font-bold text-gray-900 mb-4">
                                 Đang xác nhận email...
@@ -103,8 +103,8 @@ export default function VerifyEmailPage() {
 
                     {status === "already-verified" && (
                         <>
-                            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                                <CheckCircle className="w-8 h-8 text-blue-600" />
+                            <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                                <CheckCircle className="w-8 h-8 text-primary" />
                             </div>
                             <h2 className="text-2xl font-bold text-gray-900 mb-4">
                                 Email đã được xác nhận
@@ -112,7 +112,7 @@ export default function VerifyEmailPage() {
                             <p className="text-gray-600 mb-8">{message}</p>
                             <Link
                                 href="/"
-                                className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
                             >
                                 Tiếp tục mua sắm
                             </Link>
@@ -131,7 +131,7 @@ export default function VerifyEmailPage() {
                             <div className="space-y-3">
                                 <Link
                                     href="/auth/login"
-                                    className="block w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                    className="block w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
                                 >
                                     Đăng nhập
                                 </Link>
