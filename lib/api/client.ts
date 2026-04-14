@@ -66,13 +66,17 @@ async function apiFetch<T>(
         ;(headers as any)["Authorization"] = `Bearer ${token}`
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
         const response = await fetch(url, {
             ...options,
             headers,
-            // Add timeout to prevent hanging
-            signal: AbortSignal.timeout(10000),
+            // Use AbortController and clear the timeout to prevent Next.js HANGING_PROMISE_REJECTION
+            signal: controller.signal,
         })
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             const errorText = await response.text()

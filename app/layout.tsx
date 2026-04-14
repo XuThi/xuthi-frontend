@@ -16,6 +16,7 @@ import { commerce } from "@/lib/commerce";
 import { getCartCookieJson, getSessionId } from "@/lib/cookies";
 import { UserNav } from "@/components/user-nav";
 import { Providers } from "@/app/providers";
+import { CartErrorBoundary } from "@/app/cart/cart-error-boundary";
 
 const headingFont = Playfair_Display({
 	variable: "--font-heading",
@@ -131,21 +132,24 @@ async function CartProviderWrapper({ children }: { children: React.ReactNode }) 
 	);
 }
 
+// TODO: Check this please wtf
 export default function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="vi" data-theme={DEFAULT_THEME}>
+		<html lang="vi" data-theme={DEFAULT_THEME} suppressHydrationWarning>
 			<body className={`${headingFont.variable} ${bodyFont.variable} font-sans antialiased`}>
-				<Suspense fallback={null}>
+                <Suspense fallback={null}>
 					<RequestThemeScript />
 				</Suspense>
                 <Providers>
-				    <Suspense>
-					    <CartProviderWrapper>{children}</CartProviderWrapper>
-				    </Suspense>
+				    <CartErrorBoundary>
+					    <Suspense>
+						    <CartProviderWrapper>{children}</CartProviderWrapper>
+					    </Suspense>
+				    </CartErrorBoundary>
                 </Providers>
 			</body>
 		</html>
