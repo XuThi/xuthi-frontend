@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { connection } from "next/server"
 import { Plus, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,6 +14,7 @@ import { api } from "@/lib/api/client"
 import DeleteCategoryButton from "./delete-category-button"
 
 export default async function CategoriesPage() {
+    await connection()
     const { data: categories } = await api.categoryBrowse({ limit: 100 })
 
     return (

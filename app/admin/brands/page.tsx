@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { connection } from "next/server"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,6 +14,7 @@ import { api } from "@/lib/api/client"
 import DeleteBrandButton from "./delete-brand-button"
 
 export default async function BrandsPage() {
+    await connection()
     const { data: brands } = await api.brandBrowse()
 
     return (

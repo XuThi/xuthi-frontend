@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +14,7 @@ import { api } from "@/lib/api/client";
 import { Badge } from "@/components/ui/badge";
 
 export default async function VariantOptionsPage() {
+  await connection();
   const { data: options } = await api.variantOptionBrowse();
 
   return (

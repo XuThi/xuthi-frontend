@@ -1,8 +1,8 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
-import { useRouter } from "next/navigation"
-import { useEffect, useState, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState, useCallback, useRef } from "react"
 import {
     Package,
     ShoppingBag,
@@ -13,6 +13,7 @@ import {
     RefreshCw,
     Eye,
     X,
+    type LucideIcon,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -81,7 +82,7 @@ interface OrdersResponse {
 
 const statusConfig: Record<
     string,
-    { label: string; icon: any; color: string }
+    { label: string; icon: LucideIcon; color: string }
 > = {
     pending: {
         label: "Chờ xác nhận",
@@ -116,7 +117,7 @@ const statusConfig: Record<
 }
 
 function formatCurrency(amount: number) {
-    if (typeof amount !== "number" || isNaN(amount)) return "0 ₫"
+    if (typeof amount !== "number" || Number.isNaN(amount)) return "0 ₫"
     return new Intl.NumberFormat("vi-VN", {
         style: "currency",
         currency: "VND",
@@ -136,10 +137,13 @@ function formatDate(dateString: string) {
 export default function OrdersPage() {
     const { user, isAuthenticated, isLoading, token } = useAuth()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [mounted, setMounted] = useState(false)
     const [orders, setOrders] = useState<OrderSummary[]>([])
     const [loadingOrders, setLoadingOrders] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [payosNotice, setPayosNotice] = useState<string | null>(null)
+    const queryHandledRef = useRef<string | null>(null)
 
     // Modal state
     const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null)
@@ -187,7 +191,7 @@ export default function OrdersPage() {
         }
     }, [user?.email, token])
 
-    const fetchOrderDetail = async (orderId: string) => {
+    const fetchOrderDetail = useCallback(async (orderId: string) => {
         setLoadingDetail(true)
         try {
             const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
@@ -216,13 +220,50 @@ export default function OrdersPage() {
         } finally {
             setLoadingDetail(false)
         }
-    }
+    }, [token])
 
     useEffect(() => {
         if (mounted && isAuthenticated && user?.email && token) {
             fetchOrders()
         }
     }, [mounted, isAuthenticated, user?.email, token, fetchOrders])
+
+    useEffect(() => {
+        if (!mounted || !isAuthenticated) {
+            return
+        }
+
+        const orderId = searchParams.get("orderId")
+        const payosStatus = searchParams.get("payos")
+
+        if (!orderId && !payosStatus) {
+            return
+        }
+
+        if (orderId && !token) {
+            return
+        }
+
+        const signature = `${orderId ?? ""}|${payosStatus ?? ""}`
+        if (queryHandledRef.current === signature) {
+            return
+        }
+
+        queryHandledRef.current = signature
+
+        if (payosStatus === "success") {
+            setPayosNotice("Thanh toán thành công. Đơn hàng đang được cập nhật bởi webhook PayOS.")
+        } else if (payosStatus === "cancel") {
+            setPayosNotice("Bạn đã hủy thanh toán PayOS. Đơn hàng chờ thanh toán đã được chuyển sang trạng thái hủy.")
+        }
+
+        if (orderId) {
+            void fetchOrderDetail(orderId)
+            void fetchOrders()
+        }
+
+        router.replace("/orders")
+    }, [mounted, isAuthenticated, token, searchParams, fetchOrderDetail, fetchOrders, router])
 
     if (!mounted || isLoading) {
         return (
@@ -256,6 +297,12 @@ export default function OrdersPage() {
                     />
                 </button>
             </div>
+
+            {payosNotice && (
+                <div className="mb-6 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-primary">
+                    {payosNotice}
+                </div>
+            )}
 
             {loadingOrders ? (
                 <div className="flex items-center justify-center py-12">
@@ -353,6 +400,14 @@ export default function OrdersPage() {
                                                         "Paid" && (
                                                         <span className="ml-2 text-green-600 font-medium">
                                                             (Đã thanh toán)
+                                                        </span>
+                                                    )}
+                                                {order.paymentMethod !==
+                                                    "CashOnDelivery" &&
+                                                    order.paymentStatus ===
+                                                        "Failed" && (
+                                                        <span className="ml-2 text-red-600 font-medium">
+                                                            (Thanh toán thất bại/đã hủy)
                                                         </span>
                                                     )}
                                             </p>

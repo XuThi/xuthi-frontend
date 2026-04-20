@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { connection } from "next/server"
 import { Plus, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,6 +15,7 @@ import { api } from "@/lib/api/client"
 import DeleteProductButton from "./delete-product-button"
 
 export default async function ProductsPage() {
+    await connection()
     const { data: products } = await api.productBrowse({ limit: 50 })
 
     return (

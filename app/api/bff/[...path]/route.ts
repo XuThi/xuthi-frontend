@@ -9,6 +9,28 @@ const getBackendBaseUrl = () => {
 
 const BACKEND_BASE_URL = getBackendBaseUrl()
 
+const HOP_BY_HOP_HEADERS = new Set([
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "host",
+    "content-length",
+    "accept-encoding",
+])
+
+const shouldForwardHeader = (name: string) => {
+    const lower = name.toLowerCase()
+    if (HOP_BY_HOP_HEADERS.has(lower)) return false
+    if (lower.startsWith("sec-")) return false
+    if (lower === "origin" || lower === "referer") return false
+    return true
+}
+
 async function proxyRequest(
     request: Request,
     context: { params: Promise<{ path?: string[] }> },
@@ -19,20 +41,27 @@ async function proxyRequest(
     const targetUrl = new URL(`/${path}`, BACKEND_BASE_URL)
     targetUrl.search = incomingUrl.search
 
-    const headers = new Headers(request.headers)
-    headers.delete("host")
-    headers.delete("connection")
+    const headers = new Headers()
+    for (const [name, value] of request.headers.entries()) {
+        if (shouldForwardHeader(name)) {
+            headers.set(name, value)
+        }
+    }
 
     const method = request.method.toUpperCase()
     const hasBody = method !== "GET" && method !== "HEAD"
-    const body = hasBody ? await request.arrayBuffer() : undefined
-
-    const upstreamResponse = await fetch(targetUrl, {
+    const init: RequestInit & { duplex?: "half" } = {
         method,
         headers,
-        body: hasBody ? body : undefined,
         redirect: "manual",
-    })
+    }
+
+    if (hasBody) {
+        init.body = request.body
+        init.duplex = "half"
+    }
+
+    const upstreamResponse = await fetch(targetUrl, init)
 
     const responseHeaders = new Headers(upstreamResponse.headers)
     responseHeaders.delete("content-encoding")

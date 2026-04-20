@@ -1,7 +1,6 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
-import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { useCart } from "@/app/cart/cart-context"
 import { clearCartAction } from "@/app/cart/actions"
@@ -64,8 +63,6 @@ function normalizeLocationName(name: string) {
 export default function CheckoutPage() {
     const { user, isAuthenticated, isLoading, token } = useAuth()
     const { cart, clearCart } = useCart()
-    const router = useRouter()
-    const searchParams = useSearchParams()
     const [mounted, setMounted] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [orderComplete, setOrderComplete] = useState<{
@@ -110,19 +107,6 @@ export default function CheckoutPage() {
         notes: "",
         paymentMethod: "cod",
     })
-
-    // Handle PayOS return
-    useEffect(() => {
-        const payosStatus = searchParams.get("payos")
-        if (payosStatus === "success") {
-            // PayOS payment completed - show a message and redirect to orders
-            router.replace("/orders")
-        } else if (payosStatus === "cancel") {
-            setError("Bạn đã hủy thanh toán. Vui lòng thử lại.")
-            // Clean URL
-            router.replace("/checkout")
-        }
-    }, [searchParams, router])
 
     // Fetch provinces on mount
     useEffect(() => {
@@ -541,8 +525,8 @@ export default function CheckoutPage() {
                     quantity: item.quantity,
                 })),
                 voucherCode: voucherApplied?.code || null,
-                returnUrl: `${window.location.origin}/checkout?payos=success`,
-                cancelUrl: `${window.location.origin}/checkout?payos=cancel`,
+                returnUrl: `${window.location.origin}/payment/payos/success`,
+                cancelUrl: `${window.location.origin}/payment/payos/cancel`,
             }
 
             const response = await fetch(`${API_URL}/api/orders/checkout`, {
@@ -556,6 +540,12 @@ export default function CheckoutPage() {
 
             if (response.ok) {
                 const result = await response.json()
+
+                // PayOS/bank transfer: redirect immediately before any local success/cart side-effects.
+                if (result.paymentUrl) {
+                    window.location.href = result.paymentUrl
+                    return
+                }
 
                 // Subscribe to newsletter if checked (fire-and-forget)
                 if (subscribeNewsletter && customerProfileId) {
@@ -589,12 +579,6 @@ export default function CheckoutPage() {
                 // Clear cart cookie + local state
                 await clearCartAction()
                 clearCart()
-
-                // PayOS/bank transfer: redirect immediately
-                if (result.paymentUrl) {
-                    window.location.href = result.paymentUrl
-                    return
-                }
             } else {
                 const errorData = await response.json().catch(() => ({}))
                 setError(

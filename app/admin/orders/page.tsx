@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { connection } from 'next/server';
 import { Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +15,7 @@ import { api } from '@/lib/api/client';
 import { getOrderStatusMeta } from "@/lib/admin/presentation";
 
 export default async function OrdersPage() {
+  await connection();
   const { data: orders } = await api.orderBrowse();
 
   return (

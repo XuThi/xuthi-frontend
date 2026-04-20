@@ -445,6 +445,23 @@ export default function ProductForm({ initialData }: ProductFormProps) {
         )
     }
 
+    const triggerCatalogRevalidation = async (token: string | null) => {
+        if (!token) {
+            return
+        }
+
+        try {
+            await fetch("/api/revalidate/catalog", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            })
+        } catch (error) {
+            console.warn("Catalog revalidation failed:", error)
+        }
+    }
+
     const onSubmit = async (data: ProductFormValues) => {
         try {
             setLoading(true)
@@ -487,6 +504,9 @@ export default function ProductForm({ initialData }: ProductFormProps) {
 
             const token = localStorage.getItem("xuthi_auth_token")
             const API_URL = "/api/bff"
+            const authHeaders: HeadersInit = token
+                ? { Authorization: `Bearer ${token}` }
+                : {}
             const formData = new FormData()
             formData.append("data", JSON.stringify(payload))
             pendingImageFiles.forEach((file) => {
@@ -498,9 +518,7 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                     `${API_URL}/api/products/${initialData.id}/with-images`,
                     {
                         method: "PUT",
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
+                        headers: authHeaders,
                         body: formData,
                     },
                 )
@@ -512,9 +530,7 @@ export default function ProductForm({ initialData }: ProductFormProps) {
             } else {
                 const response = await fetch(`${API_URL}/api/products`, {
                     method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                    headers: authHeaders,
                     body: formData,
                 })
 
@@ -523,6 +539,8 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                     throw new Error(errorText || "Failed to create product")
                 }
             }
+
+            await triggerCatalogRevalidation(token)
 
             router.push("/admin/products")
         } catch (error) {
