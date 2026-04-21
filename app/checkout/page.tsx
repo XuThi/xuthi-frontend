@@ -21,17 +21,11 @@ import {
 import Link from "next/link"
 import { api } from "@/lib/api/client"
 import type { Address } from "@/lib/api/types"
+import { useCurrency } from "@/lib/currency-provider"
 
 const API_URL = "/api/bff"
 // Using internal API to serve our local JSON data
 const LOCATION_API = "/api/locations"
-
-function formatCurrency(amount: number) {
-    return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-    }).format(amount)
-}
 
 // Types for location data
 interface Province {
@@ -63,6 +57,7 @@ function normalizeLocationName(name: string) {
 export default function CheckoutPage() {
     const { user, isAuthenticated, isLoading, token } = useAuth()
     const { cart, clearCart } = useCart()
+    const { formatFromVnd } = useCurrency()
     const [mounted, setMounted] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [orderComplete, setOrderComplete] = useState<{
@@ -107,6 +102,8 @@ export default function CheckoutPage() {
         notes: "",
         paymentMethod: "cod",
     })
+
+    const formatCurrency = (amount: number) => formatFromVnd(amount)
 
     // Fetch provinces on mount
     useEffect(() => {

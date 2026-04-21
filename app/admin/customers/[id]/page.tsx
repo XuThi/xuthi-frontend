@@ -21,6 +21,7 @@ import {
     getTierBadgeClass,
     getTierLabel,
 } from "@/lib/admin/presentation"
+import { useCurrency } from "@/lib/currency-provider"
 
 interface OrderApiResponse {
     orders: Order[]
@@ -29,6 +30,7 @@ interface OrderApiResponse {
 export default function CustomerDetailPage() {
     const params = useParams<{ id: string }>()
     const customerId = params?.id
+    const { formatFromVnd, locale } = useCurrency()
 
     const [loading, setLoading] = useState(true)
     const [customer, setCustomer] = useState<CustomerDetail | null>(null)
@@ -118,7 +120,7 @@ export default function CustomerDetailPage() {
                         <p className="text-muted-foreground">
                             Tham gia ngày{" "}
                             {new Date(customer.createdAt).toLocaleDateString(
-                                "vi-VN",
+                                locale,
                             )}
                         </p>
                     </div>
@@ -160,7 +162,7 @@ export default function CustomerDetailPage() {
                                     {customer.dateOfBirth
                                         ? new Date(
                                               customer.dateOfBirth,
-                                          ).toLocaleDateString("vi-VN")
+                                          ).toLocaleDateString(locale)
                                         : "Chưa cập nhật"}
                                 </div>
                             </div>
@@ -177,12 +179,8 @@ export default function CustomerDetailPage() {
                             <div className="flex justify-between">
                                 <span>Tổng chi tiêu</span>
                                 <span className="font-bold">
-                                    {new Intl.NumberFormat("vi-VN", {
-                                        style: "currency",
-                                        currency: "VND",
-                                    }).format(
-                                        computedTotalSpent ||
-                                            customer.totalSpent,
+                                    {formatFromVnd(
+                                        computedTotalSpent || customer.totalSpent,
                                     )}
                                 </span>
                             </div>
@@ -289,7 +287,7 @@ export default function CustomerDetailPage() {
                                         <TableCell>
                                             {new Date(
                                                 order.createdAt,
-                                            ).toLocaleString("vi-VN")}
+                                            ).toLocaleString(locale)}
                                         </TableCell>
                                         <TableCell>
                                             {(() => {
@@ -310,10 +308,7 @@ export default function CustomerDetailPage() {
                                             })()}
                                         </TableCell>
                                         <TableCell>
-                                            {new Intl.NumberFormat("vi-VN", {
-                                                style: "currency",
-                                                currency: "VND",
-                                            }).format(order.total)}
+                                            {formatFromVnd(order.total)}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Link

@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { useCurrency } from "@/lib/currency-provider"
 import { BFF_API_ENDPOINT } from "@/lib/constants"
 
 const API_URL = BFF_API_ENDPOINT
@@ -116,16 +117,8 @@ const statusConfig: Record<
     },
 }
 
-function formatCurrency(amount: number) {
-    if (typeof amount !== "number" || Number.isNaN(amount)) return "0 ₫"
-    return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-    }).format(amount)
-}
-
-function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString("vi-VN", {
+function formatDate(dateString: string, locale: string) {
+    return new Date(dateString).toLocaleDateString(locale, {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -136,6 +129,7 @@ function formatDate(dateString: string) {
 
 export default function OrdersPage() {
     const { user, isAuthenticated, isLoading, token } = useAuth()
+    const { formatFromVnd, locale } = useCurrency()
     const router = useRouter()
     const searchParams = useSearchParams()
     const [mounted, setMounted] = useState(false)
@@ -278,6 +272,7 @@ export default function OrdersPage() {
     }
 
     const selectedItems = selectedOrder?.items ?? []
+    const formatCurrency = (amount: number) => formatFromVnd(amount)
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-8">
@@ -358,7 +353,7 @@ export default function OrdersPage() {
                                             {order.orderNumber}
                                         </span>
                                         <span className="text-gray-500 text-sm ml-4">
-                                            {formatDate(order.createdAt)}
+                                            {formatDate(order.createdAt, locale)}
                                         </span>
                                     </div>
                                     <div

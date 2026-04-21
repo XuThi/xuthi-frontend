@@ -13,12 +13,12 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet"
 import { AppLink } from "@/components/app-link"
-import { CURRENCY, LOCALE } from "@/lib/constants"
+import { useCurrency } from "@/lib/currency-provider"
 import { cartT } from "@/lib/i18n/translations"
-import { formatMoney } from "@/lib/money"
 
 export function CartSidebar() {
     const { isOpen, closeCart, items, itemCount, subtotal } = useCart()
+    const { formatFromVnd } = useCurrency()
 
     const checkoutUrl = `/checkout`
 
@@ -75,11 +75,7 @@ export function CartSidebar() {
                                         {cartT.subtotal}
                                     </span>
                                     <span className="font-semibold">
-                                        {formatMoney({
-                                            amount: subtotal,
-                                            currency: CURRENCY,
-                                            locale: LOCALE,
-                                        })}
+                                        {formatFromVnd(subtotal)}
                                     </span>
                                 </div>
                                 <p className="text-xs text-muted-foreground">

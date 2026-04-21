@@ -114,8 +114,11 @@ export interface ProductBrowseParams {
     categoryId?: string
     brandId?: string
     searchTerm?: string
+    query?: string
     minPrice?: number
     maxPrice?: number
+    colors?: string[]
+    sizes?: string[]
     sortBy?: "name" | "price" | "createdAt"
     sortDirection?: "asc" | "desc"
 }
@@ -123,6 +126,9 @@ export interface ProductBrowseParams {
 async function productBrowse(params: ProductBrowseParams = {}): Promise<{
     data: Product[]
     totalCount: number
+    page: number
+    pageSize: number
+    totalPages: number
 }> {
     const searchParams = new URLSearchParams()
 
@@ -132,12 +138,19 @@ async function productBrowse(params: ProductBrowseParams = {}): Promise<{
     if (params.page) searchParams.set("page", String(params.page))
     if (params.categoryId) searchParams.set("categoryId", params.categoryId)
     if (params.brandId) searchParams.set("brandId", params.brandId)
-    if (params.searchTerm) searchParams.set("searchTerm", params.searchTerm)
-    if (params.minPrice) searchParams.set("minPrice", String(params.minPrice))
-    if (params.maxPrice) searchParams.set("maxPrice", String(params.maxPrice))
+    if (params.query) searchParams.set("query", params.query)
+    else if (params.searchTerm) searchParams.set("query", params.searchTerm)
+    if (params.minPrice !== undefined)
+        searchParams.set("minPrice", String(params.minPrice))
+    if (params.maxPrice !== undefined)
+        searchParams.set("maxPrice", String(params.maxPrice))
+    if (params.colors && params.colors.length > 0)
+        searchParams.set("colors", params.colors.join(","))
+    if (params.sizes && params.sizes.length > 0)
+        searchParams.set("sizes", params.sizes.join(","))
     if (params.sortBy) searchParams.set("sortBy", params.sortBy)
     if (params.sortDirection)
-        searchParams.set("sortDirection", params.sortDirection)
+        searchParams.set("sortDescending", String(params.sortDirection === "desc"))
 
     const queryString = searchParams.toString()
     const endpoint = `/api/products${queryString ? `?${queryString}` : ""}`
@@ -147,10 +160,19 @@ async function productBrowse(params: ProductBrowseParams = {}): Promise<{
         return {
             data: result.products || [],
             totalCount: result.totalCount || 0,
+            page: result.page || params.page || 1,
+            pageSize: result.pageSize || params.limit || 10,
+            totalPages: result.totalPages || 1,
         }
     } catch {
         // Return empty data on error so the page still renders
-        return { data: [], totalCount: 0 }
+        return {
+            data: [],
+            totalCount: 0,
+            page: params.page || 1,
+            pageSize: params.limit || 10,
+            totalPages: 1,
+        }
     }
 }
 

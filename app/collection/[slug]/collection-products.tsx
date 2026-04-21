@@ -741,7 +741,7 @@ export function CollectionProducts({
                                     >
                                         <div className="relative aspect-square bg-secondary rounded-2xl overflow-hidden mb-4">
                                             {maxDiscountPercent && (
-                                                <span className="absolute left-3 top-3 z-10 rounded-full bg-sale px-2.5 py-1 text-xs font-semibold text-sale-foreground">
+                                                <span className="absolute left-3 top-3 z-10 rounded-full bg-sale px-2.5 py-1 text-xs font-semibold text-sale-foreground bg-sale">
                                                     -{maxDiscountPercent}%
                                                 </span>
                                             )}

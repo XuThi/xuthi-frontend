@@ -12,10 +12,16 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/lib/api/client"
+import {
+    formatDisplayMoney,
+    formatDisplayMoneyRange,
+} from "@/lib/currency"
+import { getServerCurrencyPreference } from "@/lib/currency-server"
 import DeleteProductButton from "./delete-product-button"
 
 export default async function ProductsPage() {
     await connection()
+    const currency = await getServerCurrencyPreference()
     const { data: products } = await api.productBrowse({ limit: 50 })
 
     return (
@@ -73,29 +79,16 @@ export default async function ProductsPage() {
                                     const maxPrice = Math.max(...prices)
 
                                     if (minPrice === maxPrice) {
-                                        priceDisplay = new Intl.NumberFormat(
-                                            "vi-VN",
-                                            {
-                                                style: "currency",
-                                                currency: "VND",
-                                            },
-                                        ).format(minPrice)
+                                        priceDisplay = formatDisplayMoney({
+                                            amountInVnd: minPrice,
+                                            currency,
+                                        })
                                     } else {
-                                        const min = new Intl.NumberFormat(
-                                            "vi-VN",
-                                            {
-                                                style: "currency",
-                                                currency: "VND",
-                                            },
-                                        ).format(minPrice)
-                                        const max = new Intl.NumberFormat(
-                                            "vi-VN",
-                                            {
-                                                style: "currency",
-                                                currency: "VND",
-                                            },
-                                        ).format(maxPrice)
-                                        priceDisplay = `${min} - ${max}`
+                                        priceDisplay = formatDisplayMoneyRange({
+                                            minAmountInVnd: minPrice,
+                                            maxAmountInVnd: maxPrice,
+                                            currency,
+                                        })
                                     }
                                 }
 

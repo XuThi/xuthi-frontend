@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useParams } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { getOrderStatusMeta } from "@/lib/admin/presentation"
+import { useCurrency } from "@/lib/currency-provider"
 
 const API_URL = "/api/bff"
 
@@ -115,17 +116,10 @@ function getStatusButtonClass(
     return `${statusColor} border opacity-90 hover:opacity-100`
 }
 
-function formatCurrency(amount: number) {
-    return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-    }).format(amount)
-}
-
 export default function OrderDetailPage() {
-    const router = useRouter()
     const params = useParams()
     const orderId = params.id as string
+    const { formatFromVnd, locale } = useCurrency()
 
     const [order, setOrder] = useState<Order | null>(null)
     const [loading, setLoading] = useState(true)
@@ -240,6 +234,7 @@ export default function OrderDetailPage() {
     }
 
     const currentStatus = getOrderStatusMeta(order.status)
+    const formatCurrency = (amount: number) => formatFromVnd(amount)
     const currentStatusIndex = statusSequence.indexOf(
         order.status as (typeof statusSequence)[number],
     )
@@ -278,7 +273,7 @@ export default function OrderDetailPage() {
                     </h1>
                     <p className="text-muted-foreground">
                         Đặt ngày{" "}
-                        {new Date(order.createdAt).toLocaleString("vi-VN")}
+                        {new Date(order.createdAt).toLocaleString(locale)}
                     </p>
                 </div>
                 <Badge

@@ -20,6 +20,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { getTierBadgeClass, getTierLabel } from "@/lib/admin/presentation"
+import { useCurrency } from "@/lib/currency-provider"
 
 const API_URL = "/api/bff"
 
@@ -44,6 +45,7 @@ interface Order {
 export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([])
     const [loading, setLoading] = useState(true)
+    const { formatFromVnd, locale } = useCurrency()
 
     useEffect(() => {
         const fetchCustomers = async () => {
@@ -195,15 +197,12 @@ export default function CustomersPage() {
                                     </TableCell>
                                     <TableCell>{c.totalOrders}</TableCell>
                                     <TableCell>
-                                        {new Intl.NumberFormat("vi-VN", {
-                                            style: "currency",
-                                            currency: "VND",
-                                        }).format(c.totalSpent)}
+                                        {formatFromVnd(c.totalSpent)}
                                     </TableCell>
                                     <TableCell>
                                         {new Date(
                                             c.createdAt,
-                                        ).toLocaleDateString("vi-VN")}
+                                        ).toLocaleDateString(locale)}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>

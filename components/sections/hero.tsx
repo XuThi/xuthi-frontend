@@ -62,31 +62,47 @@ export function Hero() {
             try {
                 const result = await api.saleCampaignBrowse({
                     isActive: true,
-                    onlyRunning: true,
                     pageSize: 10,
                 })
+
+                const getBannerImage = (value: unknown): string | null => {
+                    if (!value || typeof value !== "object") return null
+                    const candidate =
+                        (value as { bannerImageUrl?: unknown }).bannerImageUrl ??
+                        (value as Record<string, unknown>)["BannerImageUrl"]
+                    return typeof candidate === "string" && candidate.trim().length > 0
+                        ? candidate.trim()
+                        : null
+                }
+
                 const bannerSlides = (result.data || [])
-                    .filter((c) => {
-                        const url =
-                            c.bannerImageUrl ??
-                            (c as unknown as Record<string, unknown>)["BannerImageUrl"]
-                        return (
-                            typeof url === "string" && url.trim().length > 0
-                        )
-                    })
+                    .filter((c) => getBannerImage(c) !== null)
                     .map((c) => {
-                        const url = (
-                            c.bannerImageUrl ??
-                            (c as unknown as Record<string, unknown>)["BannerImageUrl"]
-                        ) as string
+                        const url = getBannerImage(c) as string
                         return {
-                            image: url.trim(),
+                            image: url,
                             link: c.slug ? `/sale/${c.slug}` : "/collection",
                             alt: c.name,
                         }
                     })
+
                 if (bannerSlides.length > 0) {
                     setSlides(bannerSlides)
+                    setVirtualIndex(1)
+                    return
+                }
+
+                const collections = await api.collectionBrowse({ limit: 6 })
+                const collectionSlides = (collections.data || [])
+                    .filter((c) => typeof c.image === "string" && c.image.trim().length > 0)
+                    .map((c) => ({
+                        image: c.image!.trim(),
+                        link: c.slug ? `/collection/${c.slug}` : "/collection",
+                        alt: c.name,
+                    }))
+
+                if (collectionSlides.length > 0) {
+                    setSlides(collectionSlides)
                     setVirtualIndex(1)
                 }
             } catch (e) {
@@ -203,7 +219,7 @@ export function Hero() {
     }
 
     // ── Render ─────────────────────────────────────────────────────────────
-    if (!isLoaded || slideCount === 0) {
+    if (!isLoaded) {
         return (
             <section className="relative w-full overflow-hidden">
                 <div
@@ -214,6 +230,44 @@ export function Hero() {
                         maxHeight: "900px",
                     }}
                 />
+            </section>
+        )
+    }
+
+    if (slideCount === 0) {
+        return (
+            <section className="relative w-full overflow-hidden">
+                <div
+                    className="relative flex w-full items-center"
+                    style={{
+                        aspectRatio: "16/8",
+                        minHeight: "500px",
+                        maxHeight: "900px",
+                    }}
+                >
+                    <div className="absolute inset-0 bg-linear-to-br from-background via-muted to-secondary" />
+                    <div className="absolute -left-20 top-0 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
+                    <div className="absolute right-0 top-10 h-64 w-64 rounded-full bg-foreground/10 blur-3xl" />
+                    <div className="relative z-10 mx-auto w-full max-w-7xl px-6 sm:px-8 lg:px-10">
+                        <div className="max-w-2xl space-y-4">
+                            <p className="text-sm font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                XuThi Collection
+                            </p>
+                            <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                                Khám phá bộ sưu tập mới nhất
+                            </h2>
+                            <p className="text-base text-muted-foreground sm:text-lg">
+                                Cập nhật các sản phẩm nổi bật với phong cách tối giản và hiện đại.
+                            </p>
+                            <Link
+                                href="/collection"
+                                className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                            >
+                                Xem tất cả sản phẩm
+                            </Link>
+                        </div>
+                    </div>
+                </div>
             </section>
         )
     }

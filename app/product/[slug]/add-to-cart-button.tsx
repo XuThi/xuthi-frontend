@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useCallback, useMemo, useState, useTransition } from "react"
 import { addToCart } from "@/app/cart/actions"
 import { useCart } from "@/app/cart/cart-context"
 import { QuantitySelector } from "@/app/product/[slug]/quantity-selector"
@@ -9,9 +9,8 @@ import {
     VariantSelector,
     type Variant,
 } from "@/app/product/[slug]/variant-selector"
-import { CURRENCY, LOCALE } from "@/lib/constants"
+import { useCurrency } from "@/lib/currency-provider"
 import { cartT } from "@/lib/i18n/translations"
-import { formatMoney } from "@/lib/money"
 
 type AddToCartButtonProps = {
     variants: Variant[]
@@ -43,6 +42,7 @@ export function AddToCartButton({
     const [quantity, setQuantity] = useState(1)
     const [isPending, startTransition] = useTransition()
     const { openCart, dispatch, items } = useCart()
+    const { formatFromVnd } = useCurrency()
 
     // Manage selected variant with client-side state (not URL params)
     const [selectedVariant, setSelectedVariant] = useState<Variant | undefined>(
@@ -87,57 +87,68 @@ export function AddToCartButton({
         if (selectedVariant.stockQuantity <= 0) return "Hết hàng"
         if (effectiveMax <= 0) return "Đã đạt giới hạn tồn kho"
         if (totalPrice) {
-            return `${cartT.addToCart} — ${formatMoney({ amount: totalPrice, currency: CURRENCY, locale: LOCALE })}`
+            return `${cartT.addToCart} — ${formatFromVnd(totalPrice)}`
         }
         return cartT.addToCart
-    }, [isPending, selectedVariant, totalPrice, effectiveMax])
+    }, [effectiveMax, formatFromVnd, isPending, selectedVariant, totalPrice])
 
-    const handleVariantChange = (variant: Variant | undefined) => {
+    const handleVariantChange = useCallback((variant: Variant | undefined) => {
         setSelectedVariant(variant)
         // Reset quantity to 1 when changing variant (new effective max may be different)
         setQuantity(1)
-    }
+    }, [])
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
+    const handleSubmit = useCallback(
+        (e: React.FormEvent) => {
+            e.preventDefault()
 
-        if (!selectedVariant) return
+            if (!selectedVariant) return
 
-        // Open cart sidebar
-        openCart()
+            // Open cart sidebar instantly to improve perceived responsiveness.
+            openCart()
 
-        // Execute server action with optimistic update
-        startTransition(async () => {
-            // Dispatch inside transition for optimistic update
-            // Using field names that match backend CartItemDto
-            dispatch({
-                type: "ADD_ITEM",
-                item: {
-                    id: `${product.id}-${selectedVariant.id}`,
-                    productId: product.id,
-                    productName: product.name,
-                    variantId: selectedVariant.id,
-                    variantSku: selectedVariant.sku,
-                    variantDescription: variantDescription,
-                    imageUrl: product.images[0] || selectedVariant.images[0],
-                    unitPrice: activeSale?.salePrice ?? selectedVariant.price,
-                    compareAtPrice: activeSale?.originalPrice ?? undefined,
-                    quantity,
-                    totalPrice:
-                        (activeSale?.salePrice ?? selectedVariant.price) *
+            // Execute server action with optimistic update.
+            startTransition(async () => {
+                dispatch({
+                    type: "ADD_ITEM",
+                    item: {
+                        id: `${product.id}-${selectedVariant.id}`,
+                        productId: product.id,
+                        productName: product.name,
+                        variantId: selectedVariant.id,
+                        variantSku: selectedVariant.sku,
+                        variantDescription: variantDescription,
+                        imageUrl: product.images[0] || selectedVariant.images[0],
+                        unitPrice: activeSale?.salePrice ?? selectedVariant.price,
+                        compareAtPrice: activeSale?.originalPrice ?? undefined,
                         quantity,
-                    addedAt: new Date().toISOString(),
-                    availableStock: selectedVariant.stockQuantity,
-                    isInStock: selectedVariant.stockQuantity > 0,
-                    isOnSale: !!activeSale,
-                },
-            })
+                        totalPrice:
+                            (activeSale?.salePrice ?? selectedVariant.price) *
+                            quantity,
+                        addedAt: new Date().toISOString(),
+                        availableStock: selectedVariant.stockQuantity,
+                        isInStock: selectedVariant.stockQuantity > 0,
+                        isOnSale: !!activeSale,
+                    },
+                })
 
-            await addToCart(selectedVariant.id, quantity)
-            // Reset quantity after add
-            setQuantity(1)
-        })
-    }
+                await addToCart(selectedVariant.id, quantity)
+                setQuantity(1)
+            })
+        },
+        [
+            activeSale,
+            dispatch,
+            openCart,
+            product.id,
+            product.images,
+            product.name,
+            quantity,
+            selectedVariant,
+            startTransition,
+            variantDescription,
+        ],
+    )
 
     return (
         <div className="space-y-8">
@@ -146,6 +157,7 @@ export function AddToCartButton({
                     variants={variants}
                     selectedVariant={selectedVariant}
                     onVariantChange={handleVariantChange}
+                    salePricing={salePricing}
                     optionNames={optionNames}
                 />
             )}
@@ -166,7 +178,7 @@ export function AddToCartButton({
                         selectedVariant.stockQuantity <= 0 ||
                         effectiveMax <= 0
                     }
-                    className="w-full h-14 bg-primary text-primary-foreground py-4 px-8 rounded-full text-base font-medium tracking-wide hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-14 w-full rounded-md bg-primary px-8 py-4 text-base font-medium tracking-wide text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {buttonText}
                 </button>

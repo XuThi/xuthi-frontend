@@ -49,6 +49,7 @@ import { Badge } from "@/components/ui/badge"
 
 import { api } from "@/lib/api/client"
 import { Category, Brand, Product, VariantOption } from "@/lib/api/types"
+import { useCurrency } from "@/lib/currency-provider"
 
 // ============ Schema ============
 
@@ -100,11 +101,6 @@ type ProductFormValues = z.infer<typeof productSchema>
 
 interface ProductFormProps {
     initialData?: Product
-}
-
-const formatVndInput = (value?: number) => {
-    if (value === undefined || value === null || Number.isNaN(value)) return ""
-    return new Intl.NumberFormat("vi-VN").format(value)
 }
 
 const parseVndInput = (raw: string, allowEmpty = false) => {
@@ -235,6 +231,7 @@ function ImageUploader({
 
 export default function ProductForm({ initialData }: ProductFormProps) {
     const router = useRouter()
+    const { locale } = useCurrency()
     const [loading, setLoading] = useState(false)
     const [notifySubscribers, setNotifySubscribers] = useState(false)
     const [pendingImageFiles, setPendingImageFiles] = useState<File[]>([])
@@ -251,6 +248,10 @@ export default function ProductForm({ initialData }: ProductFormProps) {
     const [selectedOptions, setSelectedOptions] = useState<
         { optionId: string; rawInput: string }[]
     >([])
+    const formatVndInput = (value?: number) => {
+        if (value === undefined || value === null || Number.isNaN(value)) return ""
+        return new Intl.NumberFormat(locale).format(value)
+    }
 
     // Initialize form
     const form = useForm<ProductFormValues>({

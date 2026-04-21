@@ -100,6 +100,13 @@ type VariantSelectorProps = {
     variants: Variant[]
     selectedVariant: Variant | undefined
     onVariantChange: (variant: Variant | undefined) => void
+    salePricing?: {
+        byVariantId: Record<string, { salePrice: number; originalPrice?: number | null }>
+        productFallback?: {
+            salePrice: number
+            originalPrice?: number | null
+        } | null
+    }
     optionNames?: Record<string, string>
 }
 
@@ -194,6 +201,7 @@ export function VariantSelector({
     variants,
     selectedVariant,
     onVariantChange,
+    salePricing,
     optionNames,
 }: VariantSelectorProps) {
     const variantGroups = processVariants(variants)
@@ -287,6 +295,47 @@ export function VariantSelector({
         })
     }
 
+    const optionDiscountByGroupAndValue = useMemo(() => {
+        if (!salePricing) return new Map<string, number>()
+
+        const discountMap = new Map<string, number>()
+
+        for (const variant of variants) {
+            if (!variant.attributes) continue
+
+            const pricing = salePricing.byVariantId[variant.id] ?? salePricing.productFallback ?? null
+            if (!pricing || typeof pricing.originalPrice !== "number") continue
+            if (pricing.originalPrice <= pricing.salePrice) continue
+
+            const discount = Math.round(
+                ((pricing.originalPrice - pricing.salePrice) /
+                    pricing.originalPrice) *
+                    100,
+            )
+
+            if (discount <= 0) continue
+
+            for (const [groupLabel, optionValue] of Object.entries(
+                variant.attributes,
+            )) {
+                const key = `${groupLabel}::${optionValue}`
+                const current = discountMap.get(key) ?? 0
+                if (discount > current) {
+                    discountMap.set(key, discount)
+                }
+            }
+        }
+
+        return discountMap
+    }, [salePricing, variants])
+
+    const getOptionDiscountPercent = (
+        groupLabel: string,
+        optionValue: string,
+    ): number | null => {
+        return optionDiscountByGroupAndValue.get(`${groupLabel}::${optionValue}`) ?? null
+    }
+
     if (variantGroups.length === 0) {
         return null
     }
@@ -323,6 +372,10 @@ export function VariantSelector({
                                             group.label,
                                             option.value,
                                         )
+                                        const discountPercent = getOptionDiscountPercent(
+                                            group.label,
+                                            option.value,
+                                        )
                                         const isLightColor =
                                             option.colorValue?.toUpperCase() ===
                                                 "#FFFFFF" ||
@@ -332,36 +385,42 @@ export function VariantSelector({
                                                 "#FFF"
 
                                         return (
-                                            <button
-                                                key={option.id}
-                                                type="button"
-                                                disabled={!isAvailable}
-                                                onClick={() =>
-                                                    handleOptionSelect(
-                                                        group.label,
-                                                        option.value,
-                                                    )
-                                                }
-                                                className={cn(
-                                                    "relative h-12 w-12 rounded-full transition-all duration-200",
-                                                    !isAvailable &&
-                                                        "cursor-not-allowed opacity-35",
-                                                    isSelected
-                                                        ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                                                        : "hover:ring-2 hover:ring-primary/50 hover:ring-offset-2 hover:ring-offset-background",
+                                            <div key={option.id} className="relative inline-flex">
+                                                <button
+                                                    type="button"
+                                                    disabled={!isAvailable}
+                                                    onClick={() =>
+                                                        handleOptionSelect(
+                                                            group.label,
+                                                            option.value,
+                                                        )
+                                                    }
+                                                    className={cn(
+                                                        "relative h-12 w-12 rounded-full transition-all duration-200",
+                                                        !isAvailable &&
+                                                            "cursor-not-allowed opacity-35",
+                                                        isSelected
+                                                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                                                            : "hover:ring-2 hover:ring-primary/50 hover:ring-offset-2 hover:ring-offset-background",
+                                                    )}
+                                                    style={{
+                                                        backgroundColor:
+                                                            option.colorValue ??
+                                                            "#fff",
+                                                    }}
+                                                    aria-label={option.value}
+                                                    title={option.value}
+                                                >
+                                                    {isLightColor && (
+                                                        <span className="absolute inset-0 rounded-full border border-border" />
+                                                    )}
+                                                </button>
+                                                {discountPercent && (
+                                                    <span className="pointer-events-none absolute -bottom-2 -right-1 rounded-full border border-destructive bg-background px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
+                                                        -{discountPercent}%
+                                                    </span>
                                                 )}
-                                                style={{
-                                                    backgroundColor:
-                                                        option.colorValue ??
-                                                        "#fff",
-                                                }}
-                                                aria-label={option.value}
-                                                title={option.value}
-                                            >
-                                                {isLightColor && (
-                                                    <span className="absolute inset-0 rounded-full border border-border" />
-                                                )}
-                                            </button>
+                                            </div>
                                         )
                                     })}
                                 </div>
@@ -381,31 +440,41 @@ export function VariantSelector({
                                             group.label,
                                             option.value,
                                         )
+                                        const discountPercent = getOptionDiscountPercent(
+                                            group.label,
+                                            option.value,
+                                        )
 
                                         return (
-                                            <button
-                                                key={option.id}
-                                                type="button"
-                                                disabled={!isAvailable}
-                                                onClick={() =>
-                                                    handleOptionSelect(
-                                                        group.label,
-                                                        option.value,
-                                                    )
-                                                }
-                                                className={cn(
-                                                    "flex flex-col items-center rounded-lg border-2 px-6 py-3 transition-all duration-200",
-                                                    !isAvailable &&
-                                                        "cursor-not-allowed opacity-40",
-                                                    isSelected
-                                                        ? "border-primary bg-primary text-primary-foreground"
-                                                        : "border-border bg-background hover:border-muted-foreground",
+                                            <div key={option.id} className="relative">
+                                                <button
+                                                    type="button"
+                                                    disabled={!isAvailable}
+                                                    onClick={() =>
+                                                        handleOptionSelect(
+                                                            group.label,
+                                                            option.value,
+                                                        )
+                                                    }
+                                                    className={cn(
+                                                        "flex flex-col items-center rounded-md border-2 px-6 py-3 transition-all duration-200",
+                                                        !isAvailable &&
+                                                            "cursor-not-allowed opacity-40",
+                                                        isSelected
+                                                            ? "border-primary bg-primary text-primary-foreground"
+                                                            : "border-border bg-background hover:border-muted-foreground",
+                                                    )}
+                                                >
+                                                    <span className="text-sm font-medium">
+                                                        {option.value}
+                                                    </span>
+                                                </button>
+                                                {discountPercent && (
+                                                    <span className="pointer-events-none absolute -bottom-2 -right-1 rounded-full border border-destructive bg-background px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
+                                                        -{discountPercent}%
+                                                    </span>
                                                 )}
-                                            >
-                                                <span className="text-sm font-medium">
-                                                    {option.value}
-                                                </span>
-                                            </button>
+                                            </div>
                                         )
                                     })}
                                 </div>

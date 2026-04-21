@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Voucher, VoucherType } from "@/lib/api/types"
+import { useCurrency } from "@/lib/currency-provider"
 
 const voucherSchema = z.object({
     code: z
@@ -64,13 +65,6 @@ function parseVoucherType(type: Voucher["type"]): VoucherType {
     return VoucherType.FixedAmount
 }
 
-function formatNumberInput(value: number | undefined) {
-    if (value === undefined || Number.isNaN(value)) {
-        return ""
-    }
-    return new Intl.NumberFormat("vi-VN").format(value)
-}
-
 function parseNumberInput(value: string) {
     const cleaned = value.replace(/[^\d]/g, "")
     if (!cleaned) {
@@ -87,7 +81,14 @@ function dateToInputValue(value: Date | undefined) {
 
 export default function VoucherForm({ initialData }: VoucherFormProps) {
     const router = useRouter()
+    const { locale } = useCurrency()
     const [loading, setLoading] = useState(false)
+    const formatNumberInput = (value: number | undefined) => {
+        if (value === undefined || Number.isNaN(value)) {
+            return ""
+        }
+        return new Intl.NumberFormat(locale).format(value)
+    }
     const [discountInput, setDiscountInput] = useState(
         formatNumberInput(initialData?.discountValue),
     )

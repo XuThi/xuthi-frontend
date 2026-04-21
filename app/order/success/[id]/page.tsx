@@ -6,23 +6,30 @@ import { Button } from "@/components/ui/button"
 import { AppLink } from "@/components/app-link"
 import { commerce } from "@/lib/commerce"
 import type { OrderLineItem } from "@/lib/api/types"
-import { CURRENCY, LOCALE } from "@/lib/constants"
-import { formatMoney } from "@/lib/money"
+import {
+    formatDisplayMoney,
+    type SupportedCurrency,
+} from "@/lib/currency"
+import { getServerCurrencyPreference } from "@/lib/currency-server"
 
 export default async function OrderSuccessPage(props: {
     params: Promise<{ id: string }>
 }) {
-    "use cache"
-    cacheLife("seconds")
+    const currency = await getServerCurrencyPreference()
 
-    return <OrderDetails params={props.params} />
+    return <OrderDetails params={props.params} currency={currency} />
 }
 
 const OrderDetails = async ({
     params,
+    currency,
 }: {
     params: Promise<{ id: string }>
+    currency: SupportedCurrency
 }) => {
+    "use cache"
+    cacheLife("seconds")
+
     const { id } = await params
     const order = await commerce.orderGet({ id })
 
@@ -83,7 +90,11 @@ const OrderDetails = async ({
                 </div>
                 <div className="divide-y divide-border">
                     {lineItems.map((item) => (
-                        <OrderItemComponent key={item.id} item={item} />
+                        <OrderItemComponent
+                            key={item.id}
+                            item={item}
+                            currency={currency}
+                        />
                     ))}
                 </div>
 
@@ -92,10 +103,9 @@ const OrderDetails = async ({
                     <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Tạm tính</span>
                         <span>
-                            {formatMoney({
-                                amount: subtotal,
-                                currency: CURRENCY,
-                                locale: LOCALE,
+                            {formatDisplayMoney({
+                                amountInVnd: subtotal,
+                                currency,
                             })}
                         </span>
                     </div>
@@ -105,10 +115,9 @@ const OrderDetails = async ({
                                 Phí vận chuyển
                             </span>
                             <span>
-                                {formatMoney({
-                                    amount: shippingCost,
-                                    currency: CURRENCY,
-                                    locale: LOCALE,
+                                {formatDisplayMoney({
+                                    amountInVnd: shippingCost,
+                                    currency,
                                 })}
                             </span>
                         </div>
@@ -121,7 +130,7 @@ const OrderDetails = async ({
                             </span>
                             <span>
                                 {order.discountAmount > 0
-                                    ? `-${formatMoney({ amount: BigInt(Math.round(order.discountAmount)), currency: CURRENCY, locale: LOCALE })}`
+                                    ? `-${formatDisplayMoney({ amountInVnd: BigInt(Math.round(order.discountAmount)), currency })}`
                                     : "Da ap dung"}
                             </span>
                         </div>
@@ -129,10 +138,9 @@ const OrderDetails = async ({
                     <div className="flex items-center justify-between font-semibold pt-2 border-t border-border">
                         <span>Tổng cộng</span>
                         <span>
-                            {formatMoney({
-                                amount: total,
-                                currency: CURRENCY,
-                                locale: LOCALE,
+                            {formatDisplayMoney({
+                                amountInVnd: total,
+                                currency,
                             })}
                         </span>
                     </div>
@@ -170,7 +178,13 @@ const OrderDetails = async ({
     )
 }
 
-function OrderItemComponent({ item }: { item: OrderLineItem }) {
+function OrderItemComponent({
+    item,
+    currency,
+}: {
+    item: OrderLineItem
+    currency: SupportedCurrency
+}) {
     // Map fields from OrderLineItem
     const productName = item.productName
     const productImage = item.imageUrl
@@ -209,11 +223,7 @@ function OrderItemComponent({ item }: { item: OrderLineItem }) {
                     </p>
                 </div>
                 <p className="text-sm font-semibold">
-                    {formatMoney({
-                        amount: subtotal,
-                        currency: CURRENCY,
-                        locale: LOCALE,
-                    })}
+                    {formatDisplayMoney({ amountInVnd: subtotal, currency })}
                 </p>
             </div>
         </div>

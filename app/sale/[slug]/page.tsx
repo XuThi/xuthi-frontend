@@ -1,9 +1,17 @@
 import { cacheLife } from "next/cache"
 import { notFound } from "next/navigation"
-import Image from "next/image"
 import { commerce } from "@/lib/commerce"
 import type { Product, SaleCampaignDetail } from "@/lib/api/types"
-import { ProductGrid } from "@/components/sections/product-grid"
+import { AppLink } from "@/components/app-link"
+import { CatalogProducts } from "@/components/sections/catalog-products"
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 
 export default async function SaleCampaignPage(props: {
     params: Promise<{ slug: string }>
@@ -21,69 +29,83 @@ export default async function SaleCampaignPage(props: {
         notFound()
     }
 
-    const products = await getCampaignProducts(campaign)
+    const [products, categories] = await Promise.all([
+        getCampaignProducts(campaign),
+        commerce.collectionBrowse({}),
+    ])
+    const metaClass = "mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground"
+    const runningStatusClass = "font-medium text-green-600"
+    const upcomingStatusClass = "font-medium text-orange-600"
 
     return (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-            <section className="grid gap-8 lg:grid-cols-[1.3fr_1fr]">
-                <div>
-                    <div className="text-sm uppercase tracking-widest text-muted-foreground">
-                        Khuyến mãi
-                    </div>
-                    <h1 className="text-3xl sm:text-4xl font-semibold mt-2">
+        <main>
+            <section className="relative h-80 overflow-hidden border-b border-border">
+                <div className="absolute inset-0 bg-secondary" />
+                <div
+                    className="absolute inset-0 opacity-70"
+                    style={{
+                        backgroundImage:
+                            "repeating-linear-gradient(135deg, transparent 0 12px, hsl(var(--foreground) / 0.08) 12px 13px)",
+                    }}
+                />
+                <div className="relative mx-auto flex h-full w-full max-w-7xl flex-col justify-end px-4 pb-10 sm:px-6 lg:px-8">
+                    <Breadcrumb>
+                        <BreadcrumbList>
+                            <BreadcrumbItem>
+                                <BreadcrumbLink asChild>
+                                    <AppLink href="/" className="text-muted-foreground hover:text-foreground">
+                                        Trang chủ
+                                    </AppLink>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbPage>
+                                    Khuyến mãi
+                                </BreadcrumbPage>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbPage>
+                                    {campaign.name}
+                                </BreadcrumbPage>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+
+                    <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                         {campaign.name}
                     </h1>
                     {campaign.description && (
-                        <p className="mt-3 text-muted-foreground">
+                        <p className="mt-3 max-w-3xl text-base text-muted-foreground sm:text-lg">
                             {campaign.description}
                         </p>
                     )}
-                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    <div className={metaClass}>
                         <span>
                             {formatDateRange(
                                 campaign.startDate,
                                 campaign.endDate,
                             )}
                         </span>
-                        {campaign.isRunning && (
-                            <span className="text-green-600 font-medium">
-                                Đang diễn ra
-                            </span>
-                        )}
-                        {campaign.isUpcoming && (
-                            <span className="text-orange-600 font-medium">
-                                Sắp diễn ra
-                            </span>
-                        )}
+                        {campaign.isRunning && <span className={runningStatusClass}>Đang diễn ra</span>}
+                        {campaign.isUpcoming && <span className={upcomingStatusClass}>Sắp diễn ra</span>}
                     </div>
-                </div>
-                <div className="relative aspect-[4/3] rounded-3xl overflow-hidden bg-secondary">
-                    {campaign.bannerImageUrl ? (
-                        <Image
-                            src={campaign.bannerImageUrl}
-                            alt={campaign.name}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 1024px) 100vw, 40vw"
-                        />
-                    ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500" />
-                    )}
                 </div>
             </section>
 
             {products.length === 0 ? (
-                <section className="mt-12">
+                <section className="mx-auto mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
                         Chưa có sản phẩm nào trong chiến dịch này.
                     </div>
                 </section>
             ) : (
-                <ProductGrid
-                    title="Sản phẩm đang giảm giá"
-                    description="Lựa chọn từ chiến dịch khuyến mãi"
-                    products={products}
-                    showViewAll={false}
+                <CatalogProducts
+                    initialProducts={products}
+                    categories={categories.data}
+                    categoryMode="filter"
+                    pageSize={24}
                 />
             )}
         </main>

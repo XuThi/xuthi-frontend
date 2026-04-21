@@ -1,10 +1,14 @@
-import type { Product, Category } from "@/lib/api/types"
+import type { Product } from "@/lib/api/types"
 import { ArrowRight } from "lucide-react"
 import { cacheLife } from "next/cache"
 import Image from "next/image"
 import { commerce } from "@/lib/commerce"
-import { CURRENCY, LOCALE } from "@/lib/constants"
-import { formatMoney } from "@/lib/money"
+import {
+    formatDisplayMoney,
+    formatDisplayMoneyRange,
+    type SupportedCurrency,
+} from "@/lib/currency"
+import { getServerCurrencyPreference } from "@/lib/currency-server"
 import { AppLink } from "../app-link"
 
 // Re-export Product type for consumers
@@ -27,8 +31,34 @@ export async function ProductGrid({
     showViewAll = true,
     viewAllHref = "/collection",
 }: ProductGridProps) {
+    const currency = await getServerCurrencyPreference()
+
+    return (
+        <ProductGridContent
+            title={title}
+            description={description}
+            products={products}
+            limit={limit}
+            showViewAll={showViewAll}
+            viewAllHref={viewAllHref}
+            currency={currency}
+        />
+    )
+}
+
+async function ProductGridContent({
+    title,
+    description,
+    products,
+    limit,
+    showViewAll,
+    viewAllHref,
+    currency,
+}: ProductGridProps & { currency: SupportedCurrency }) {
     "use cache"
     cacheLife("minutes")
+
+    const resolvedViewAllHref = viewAllHref ?? "/collection"
 
     const displayProducts =
         products ?? (await commerce.productBrowse({ active: true, limit })).data
@@ -61,7 +91,7 @@ export async function ProductGrid({
                 {showViewAll && (
                     <AppLink
                         prefetch={"eager"}
-                        href={viewAllHref}
+                        href={resolvedViewAllHref}
                         className="hidden sm:inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
                         Xem tất cả
@@ -149,32 +179,47 @@ export async function ProductGrid({
                         minPrice &&
                         maxPrice &&
                         minPrice !== maxPrice
-                            ? `${formatMoney({ amount: minPrice, currency: CURRENCY, locale: LOCALE })} - ${formatMoney({ amount: maxPrice, currency: CURRENCY, locale: LOCALE })}`
+                            ? formatDisplayMoneyRange({
+                                  minAmountInVnd: minPrice,
+                                  maxAmountInVnd: maxPrice,
+                                  currency,
+                              })
                             : minPrice
-                              ? formatMoney({
-                                    amount: minPrice,
-                                    currency: CURRENCY,
-                                    locale: LOCALE,
+                              ? formatDisplayMoney({
+                                    amountInVnd: minPrice,
+                                    currency,
                                 })
                               : null
                     const salePriceDisplay =
                         minSale !== null && maxSale !== null
                             ? minSale !== maxSale
-                                ? `${formatMoney({ amount: BigInt(Math.round(minSale)), currency: CURRENCY, locale: LOCALE })} - ${formatMoney({ amount: BigInt(Math.round(maxSale)), currency: CURRENCY, locale: LOCALE })}`
-                                : formatMoney({
-                                      amount: BigInt(Math.round(minSale)),
-                                      currency: CURRENCY,
-                                      locale: LOCALE,
+                                ? formatDisplayMoneyRange({
+                                      minAmountInVnd: BigInt(Math.round(minSale)),
+                                      maxAmountInVnd: BigInt(Math.round(maxSale)),
+                                      currency,
+                                  })
+                                : formatDisplayMoney({
+                                      amountInVnd: BigInt(Math.round(minSale)),
+                                      currency,
                                   })
                             : null
                     const originalPriceDisplay =
                         minOriginal !== null && maxOriginal !== null
                             ? minOriginal !== maxOriginal
-                                ? `${formatMoney({ amount: BigInt(Math.round(minOriginal)), currency: CURRENCY, locale: LOCALE })} - ${formatMoney({ amount: BigInt(Math.round(maxOriginal)), currency: CURRENCY, locale: LOCALE })}`
-                                : formatMoney({
-                                      amount: BigInt(Math.round(minOriginal)),
-                                      currency: CURRENCY,
-                                      locale: LOCALE,
+                                ? formatDisplayMoneyRange({
+                                      minAmountInVnd: BigInt(
+                                          Math.round(minOriginal),
+                                      ),
+                                      maxAmountInVnd: BigInt(
+                                          Math.round(maxOriginal),
+                                      ),
+                                      currency,
+                                  })
+                                : formatDisplayMoney({
+                                      amountInVnd: BigInt(
+                                          Math.round(minOriginal),
+                                      ),
+                                      currency,
                                   })
                             : null
                     const maxDiscountPercent = discountPercents.length
@@ -201,8 +246,8 @@ export async function ProductGrid({
                         >
                             <div className="relative aspect-square bg-secondary rounded-2xl overflow-hidden mb-4">
                                 {maxDiscountPercent && (
-                                    <span className="absolute left-3 top-3 z-10 rounded-full bg-sale px-3 py-1 text-xs font-semibold text-sale-foreground shadow-sm">
-                                        -{maxDiscountPercent}%
+                                    <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-sale px-2.5 py-0.5 text-xs font-semibold text-sale-foreground">
+                                        Sale
                                     </span>
                                 )}
                                 {primaryImage && (
@@ -254,7 +299,7 @@ export async function ProductGrid({
                 <div className="mt-12 text-center sm:hidden">
                     <AppLink
                         prefetch={"eager"}
-                        href={viewAllHref}
+                        href={resolvedViewAllHref}
                         className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
                         Xem tất cả sản phẩm

@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Voucher, VoucherType } from "@/lib/api/types"
 import { getVoucherStatusBadgeClass } from "@/lib/admin/presentation"
+import { useCurrency } from "@/lib/currency-provider"
 
 const API_URL = "/api/bff"
 
@@ -22,6 +23,7 @@ export default function VouchersPage() {
     const [vouchers, setVouchers] = useState<Voucher[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const { formatFromVnd, locale } = useCurrency()
 
     useEffect(() => {
         const fetchVouchers = async () => {
@@ -152,23 +154,11 @@ export default function VouchersPage() {
                                             {normalizedType ===
                                             VoucherType.Percentage
                                                 ? `${v.discountValue}%`
-                                                : new Intl.NumberFormat(
-                                                      "vi-VN",
-                                                      {
-                                                          style: "currency",
-                                                          currency: "VND",
-                                                      },
-                                                  ).format(v.discountValue)}
+                                                : formatFromVnd(v.discountValue)}
                                         </TableCell>
                                         <TableCell>
                                             {v.minimumOrderAmount
-                                                ? new Intl.NumberFormat(
-                                                      "vi-VN",
-                                                      {
-                                                          style: "currency",
-                                                          currency: "VND",
-                                                      },
-                                                  ).format(v.minimumOrderAmount)
+                                                ? formatFromVnd(v.minimumOrderAmount)
                                                 : "-"}
                                         </TableCell>
                                         <TableCell>
@@ -178,7 +168,7 @@ export default function VouchersPage() {
                                         <TableCell>
                                             {new Date(
                                                 v.endDate,
-                                            ).toLocaleDateString("vi-VN")}
+                                            ).toLocaleDateString(locale)}
                                         </TableCell>
                                         <TableCell>
                                             <Badge

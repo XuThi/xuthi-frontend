@@ -84,7 +84,7 @@
 	--accent: #ed9302;
 	--accent-foreground: #1a1a1a;
 	--destructive: oklch(0.577 0.245 27.325);
-	--sale: oklch(0.577 0.245 27.325);
+	--sale: oklch(0.55 0.2 25);
 	--sale-foreground: #ffffff;
 	--nav-hover: var(--footer-bg);
 	--link: #2563eb;
@@ -131,7 +131,7 @@
 	--accent: #f4f4f4;
 	--accent-foreground: #000000;
 	--destructive: oklch(0.577 0.245 27.325);
-	--sale: oklch(0.577 0.245 27.325);
+	--sale: oklch(0.55 0.2 25);
 	--sale-foreground: #ffffff;
 	--nav-hover: #f4f4f4;
 	--link: #2563eb;
@@ -155,7 +155,7 @@
 
 @layer base {
 	* {
-		@apply border-border outline-ring/50;
+		@apply border-border;
 	}
 	body {
 		@apply bg-background text-foreground;

@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 import { removeFromCart, setCartQuantity } from "@/app/cart/actions"
 import { type CartLineItem, useCart } from "@/app/cart/cart-context"
-import { CURRENCY, LOCALE } from "@/lib/constants"
-import { formatMoney } from "@/lib/money"
+import { useCurrency } from "@/lib/currency-provider"
 
 type CartItemProps = {
     item: CartLineItem
@@ -15,7 +14,8 @@ type CartItemProps = {
 
 export function CartItem({ item }: CartItemProps) {
     const router = useRouter()
-    const { dispatch, closeCart } = useCart()
+    const { dispatch } = useCart()
+    const { formatFromVnd } = useCurrency()
     const [, startTransition] = useTransition()
 
     // Using correct backend field names
@@ -122,21 +122,13 @@ export function CartItem({ item }: CartItemProps) {
                     {/* Price */}
                     <div className="text-right">
                         <span className="text-sm font-semibold">
-                            {formatMoney({
-                                amount: lineTotal,
-                                currency: CURRENCY,
-                                locale: LOCALE,
-                            })}
+                            {formatFromVnd(lineTotal)}
                         </span>
                         {compareAtPrice && compareAtPrice > unitPrice && (
                             <div className="text-xs text-muted-foreground line-through">
-                                {formatMoney({
-                                    amount: BigInt(
-                                        Math.round(compareAtPrice * quantity),
-                                    ),
-                                    currency: CURRENCY,
-                                    locale: LOCALE,
-                                })}
+                                {formatFromVnd(
+                                    BigInt(Math.round(compareAtPrice * quantity)),
+                                )}
                             </div>
                         )}
                     </div>

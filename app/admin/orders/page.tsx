@@ -12,10 +12,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { api } from '@/lib/api/client';
+import { formatDisplayMoney, getCurrencyDefinition } from "@/lib/currency";
+import { getServerCurrencyPreference } from "@/lib/currency-server";
 import { getOrderStatusMeta } from "@/lib/admin/presentation";
 
 export default async function OrdersPage() {
   await connection();
+  const currency = await getServerCurrencyPreference();
+  const locale = getCurrencyDefinition(currency).locale;
   const { data: orders } = await api.orderBrowse();
 
   return (
@@ -62,14 +66,14 @@ export default async function OrdersPage() {
                         <span className="text-xs text-muted-foreground">{order.customerEmail}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</TableCell>
+                  <TableCell>{new Date(order.createdAt).toLocaleDateString(locale)}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={statusMeta.badgeClass}>
                         {statusMeta.label}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.total)}
+                    {formatDisplayMoney({ amountInVnd: order.total, currency })}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" asChild>

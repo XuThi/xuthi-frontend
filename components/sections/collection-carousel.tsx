@@ -155,7 +155,7 @@ export function CollectionCarousel() {
                                     </span>
                                 </div>
                                 {card.type === "campaign" && (
-									<span className="absolute top-3 left-3 bg-sale text-sale-foreground text-xs font-semibold px-3 py-1 rounded-full tracking-wide uppercase">
+									<span className="absolute top-3 left-3 bg-sale text-sale-foreground text-xs font-semibold px-2.5 py-0.5 rounded-full tracking-wide">
                                         Sale
                                     </span>
                                 )}

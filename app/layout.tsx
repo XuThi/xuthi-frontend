@@ -131,8 +131,6 @@ async function CartProviderWrapper({ children }: { children: React.ReactNode }) 
 		</CartProvider>
 	);
 }
-
-// TODO: Check this please wtf
 export default function RootLayout({
 	children,
 }: Readonly<{
