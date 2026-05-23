@@ -27,6 +27,9 @@ export interface Product {
     brandId?: string
     brandName?: string
     isActive: boolean
+    isFeatured: boolean
+    averageRating: number
+    reviewCount: number
     variants: ProductVariant[]
     optionNames?: Record<string, string>
     createdAt: string

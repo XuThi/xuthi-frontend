@@ -109,6 +109,7 @@ async function apiFetch<T>(
 
 export interface ProductBrowseParams {
     active?: boolean
+    isFeatured?: boolean
     limit?: number
     page?: number
     categoryId?: string
@@ -134,6 +135,8 @@ async function productBrowse(params: ProductBrowseParams = {}): Promise<{
 
     if (params.active !== undefined)
         searchParams.set("isActive", String(params.active))
+    if (params.isFeatured !== undefined)
+        searchParams.set("isFeatured", String(params.isFeatured))
     if (params.limit) searchParams.set("pageSize", String(params.limit))
     if (params.page) searchParams.set("page", String(params.page))
     if (params.categoryId) searchParams.set("categoryId", params.categoryId)
@@ -193,6 +196,122 @@ async function productGet(params: {
         return await apiFetch<Product>(endpoint)
     } catch {
         return null
+    }
+}
+
+// ─── Product Reviews ───────────────────────────────────────────────────────
+
+export interface ProductReviewDto {
+    id: string
+    authorName: string
+    rating: number
+    comment: string | null
+    createdAt: string
+}
+
+export interface ProductReviewsResponse {
+    reviews: ProductReviewDto[]
+    averageRating: number
+    reviewCount: number
+}
+
+async function productGetReviews(productId: string): Promise<ProductReviewsResponse> {
+    try {
+        return await apiFetch<ProductReviewsResponse>(`/api/products/${productId}/reviews`)
+    } catch {
+        return { reviews: [], averageRating: 0, reviewCount: 0 }
+    }
+}
+
+async function productSubmitReview(params: {
+    productId: string
+    authorName: string
+    authorEmail: string
+    rating: number
+    comment?: string
+    customerId?: string
+}): Promise<{ reviewId: string; newAverageRating: number; newReviewCount: number } | null> {
+    try {
+        return await apiFetch(`/api/products/${params.productId}/reviews`, {
+            method: "POST",
+            body: JSON.stringify({
+                authorName: params.authorName,
+                authorEmail: params.authorEmail,
+                rating: params.rating,
+                comment: params.comment ?? null,
+                customerId: params.customerId ?? null,
+            }),
+        })
+    } catch {
+        return null
+    }
+}
+
+export interface UnratedProduct {
+    id: string
+    name: string
+    slug: string
+    imageUrl: string | null
+}
+
+async function productCanReview(productId: string): Promise<boolean> {
+    try {
+        const result = await apiFetch<{ canReview: boolean }>(`/api/products/${productId}/can-review`)
+        return result.canReview
+    } catch {
+        return false
+    }
+}
+
+async function orderGetUnratedProducts(): Promise<UnratedProduct[]> {
+    try {
+        return await apiFetch<UnratedProduct[]>("/api/orders/unrated-delivered-products")
+    } catch {
+        return []
+    }
+}
+
+export interface RecommendedProduct {
+    id: string
+    name: string
+    slug: string
+    images: string[]
+    minPrice: number
+    averageRating: number
+    reviewCount: number
+}
+
+async function productGetRecommendations(
+    productId: string,
+    limit = 4,
+): Promise<RecommendedProduct[]> {
+    try {
+        const result = await apiFetch<{ products: any[] }>(
+            `/api/products/${productId}/recommendations?limit=${limit}`,
+        )
+        return (result.products || []).map(p => ({
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            images: p.images || [],
+            minPrice: p.minPrice !== undefined ? Number(p.minPrice) : 0,
+            averageRating: p.averageRating || 0,
+            reviewCount: p.reviewCount || 0,
+        }))
+    } catch {
+        return []
+    }
+}
+
+async function productToggleFeatured(productId: string, isFeatured: boolean): Promise<boolean> {
+    try {
+        await apiFetch(`/api/products/${productId}/featured`, {
+            method: "PATCH",
+            body: JSON.stringify({ isFeatured }),
+        })
+        return true
+    } catch {
+        return false
     }
 }
 
@@ -987,6 +1106,14 @@ export const api = {
     saleCampaignUpdateItem,
     saleCampaignRemoveItem,
     saleItemsGet,
+
+    // Reviews & Recommendations
+    productGetReviews,
+    productSubmitReview,
+    productGetRecommendations,
+    productToggleFeatured,
+    productCanReview,
+    orderGetUnratedProducts,
 
     // Store info (stub)
     meGet,

@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/breadcrumb"
 import { AddToCartButton } from "@/app/product/[slug]/add-to-cart-button"
 import { ImageGallery } from "@/app/product/[slug]/image-gallery"
+import { ProductReviewSection } from "@/app/product/[slug]/product-reviews"
+import { RelatedProducts } from "@/app/product/[slug]/related-products"
+import { RecentlyViewedProducts } from "@/components/recently-viewed"
 import { commerce } from "@/lib/commerce"
 import {
     formatDisplayMoney,
@@ -44,7 +47,11 @@ const ProductDetails = async ({
         notFound()
     }
 
-    const product = await commerce.productGet({ idOrSlug: slug })
+    const [product, reviewsData] = await Promise.all([
+        commerce.productGet({ idOrSlug: slug }),
+        // Fetch reviews — will be used below after product is resolved
+        (async () => null)(), // placeholder resolved after product
+    ])
 
     if (!product) {
         notFound()
@@ -265,8 +272,76 @@ const ProductDetails = async ({
                 </div>
             </div>
 
-            {/* Features Section temporarily disabled */}
-            {/* <ProductFeatures /> */}
+            {/* Google Structured Data / JSON-LD for Google Lens & Image Search */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        "@context": "https://schema.org/",
+                        "@type": "Product",
+                        "name": product.name,
+                        "image": allImages,
+                        "description": product.summary || product.name,
+                        "sku": product.variants[0]?.sku || "N/A",
+                        "brand": {
+                            "@type": "Brand",
+                            "name": "XuThi",
+                        },
+                        "offers": {
+                            "@type": "Offer",
+                            "url": `https://xuthi.vercel.app/product/${product.slug}`,
+                            "priceCurrency": "VND",
+                            "price": minPrice.toString(),
+                            "itemCondition": "https://schema.org/NewCondition",
+                            "availability": "https://schema.org/InStock",
+                        },
+                    }),
+                }}
+            />
+
+            {/* Reviews & Recommendations — loaded after main content */}
+            <ReviewsAndRecommendations
+                productId={product.id}
+                currency={currency}
+            />
+
+            {/* Client-side LocalStorage Browsing History */}
+            <RecentlyViewedProducts
+                currentProduct={{
+                    id: product.id,
+                    name: product.name,
+                    slug: product.slug,
+                    image: allImages[0] || "",
+                    price: minPrice.toString(),
+                }}
+                currency={currency}
+            />
         </div>
+    )
+}
+
+async function ReviewsAndRecommendations({
+    productId,
+    currency,
+}: {
+    productId: string
+    currency: SupportedCurrency
+}) {
+    // Parallel fetch — no waterfall
+    const [reviewsData, recommendations] = await Promise.all([
+        commerce.productGetReviews(productId),
+        commerce.productGetRecommendations(productId, 8),
+    ])
+
+    return (
+        <>
+            <RelatedProducts products={recommendations} currency={currency} />
+            <ProductReviewSection
+                productId={productId}
+                initialReviews={reviewsData.reviews}
+                initialAverageRating={reviewsData.averageRating}
+                initialReviewCount={reviewsData.reviewCount}
+            />
+        </>
     )
 }

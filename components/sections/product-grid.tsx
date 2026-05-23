@@ -19,6 +19,7 @@ type ProductGridProps = {
     description?: string
     products?: Product[]
     limit?: number
+    isFeatured?: boolean
     showViewAll?: boolean
     viewAllHref?: string
 }
@@ -28,6 +29,7 @@ export async function ProductGrid({
     description = "Tuyển chọn dành cho bạn",
     products,
     limit = 6,
+    isFeatured = false,
     showViewAll = true,
     viewAllHref = "/collection",
 }: ProductGridProps) {
@@ -39,6 +41,7 @@ export async function ProductGrid({
             description={description}
             products={products}
             limit={limit}
+            isFeatured={isFeatured}
             showViewAll={showViewAll}
             viewAllHref={viewAllHref}
             currency={currency}
@@ -51,6 +54,7 @@ async function ProductGridContent({
     description,
     products,
     limit,
+    isFeatured,
     showViewAll,
     viewAllHref,
     currency,
@@ -61,7 +65,8 @@ async function ProductGridContent({
     const resolvedViewAllHref = viewAllHref ?? "/collection"
 
     const displayProducts =
-        products ?? (await commerce.productBrowse({ active: true, limit })).data
+        products ??
+        (await commerce.productBrowse({ active: true, limit, isFeatured })).data
     const productIds = displayProducts.map((product) => product.id)
     const variantIds = displayProducts.flatMap((product) =>
         product.variants.map((variant) => variant.id),

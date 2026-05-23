@@ -49,6 +49,13 @@ const SORT_LABELS: Record<SortOption, string> = {
     newest: "Mới nhất",
 }
 
+const PRICE_RANGES = [
+    { label: "Dưới 200.000đ", value: "0-200" },
+    { label: "200.000đ - 500.000đ", value: "200-500" },
+    { label: "500.000đ - 600.000đ", value: "500-600" },
+    { label: "Trên 600.000đ", value: "600-" },
+] as const;
+
 const COLOR_KEYS = new Set(["color", "colour", "mau", "mau-sac", "mausac"])
 const SIZE_KEYS = new Set(["size", "kich-co", "kichco", "co-giay", "cogiay"])
 const COLOR_SWATCHES: Record<string, string> = {
@@ -143,14 +150,22 @@ export function CatalogProducts({
     const [selectedSizes, setSelectedSizes] = useState<string[]>(
         searchParams.get("sizes")?.split(",").filter(Boolean) || [],
     )
-    const [minPriceInput, setMinPriceInput] = useState(searchParams.get("minPrice") || "")
-    const [maxPriceInput, setMaxPriceInput] = useState(searchParams.get("maxPrice") || "")
     const [minPrice, setMinPrice] = useState<number | undefined>(
         searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined,
     )
     const [maxPrice, setMaxPrice] = useState<number | undefined>(
         searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined,
     )
+
+    const selectedPriceRange = useMemo(() => {
+        if (minPrice === undefined && maxPrice === undefined) return "all";
+        return `${minPrice ?? 0}-${maxPrice ?? ""}`;
+    }, [minPrice, maxPrice]);
+
+    const selectedPriceRangeLabel = useMemo(() => {
+        return PRICE_RANGES.find(r => r.value === selectedPriceRange)?.label;
+    }, [selectedPriceRange]);
+
     const pageFromQuery = Math.max(1, Number(searchParams.get("page") || "1") || 1)
     const [currentPage, setCurrentPage] = useState<number>(
         serverCurrentPage ?? pageFromQuery,
@@ -323,23 +338,26 @@ export function CatalogProducts({
         router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
     }
 
-    const applyPriceFilter = () => {
-        const parsedMin = minPriceInput.trim() === "" ? undefined : Number(minPriceInput)
-        const parsedMax = maxPriceInput.trim() === "" ? undefined : Number(maxPriceInput)
-        const nextMin = Number.isFinite(parsedMin) ? parsedMin : undefined
-        const nextMax = Number.isFinite(parsedMax) ? parsedMax : undefined
-        setMinPrice(nextMin)
-        setMaxPrice(nextMax)
-        setCurrentPage(1)
+    const handlePriceRangeChange = (value: string | null) => {
+        let nextMin: number | undefined = undefined;
+        let nextMax: number | undefined = undefined;
+        if (value && value !== "all") {
+            const [minStr, maxStr] = value.split("-");
+            nextMin = minStr ? Number(minStr) : undefined;
+            nextMax = maxStr ? Number(maxStr) : undefined;
+        }
+        setMinPrice(nextMin);
+        setMaxPrice(nextMax);
+        setCurrentPage(1);
 
-        const params = new URLSearchParams(searchParams.toString())
-        if (nextMin === undefined) params.delete("minPrice")
-        else params.set("minPrice", String(nextMin))
-        if (nextMax === undefined) params.delete("maxPrice")
-        else params.set("maxPrice", String(nextMax))
-        params.delete("page")
-        const query = params.toString()
-        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+        const params = new URLSearchParams(searchParams.toString());
+        if (nextMin === undefined) params.delete("minPrice");
+        else params.set("minPrice", String(nextMin));
+        if (nextMax === undefined) params.delete("maxPrice");
+        else params.set("maxPrice", String(nextMax));
+        params.delete("page");
+        const query = params.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
     }
 
     const clearAllFilters = () => {
@@ -347,8 +365,6 @@ export function CatalogProducts({
         setSelectedCategories([])
         setSelectedColors([])
         setSelectedSizes([])
-        setMinPriceInput("")
-        setMaxPriceInput("")
         setMinPrice(undefined)
         setMaxPrice(undefined)
         setCurrentPage(1)
@@ -374,7 +390,7 @@ export function CatalogProducts({
             result = result.filter((product) =>
                 product.variants.some((variant) => {
                     const values = getVariantValuesByKeySet(variant, COLOR_KEYS)
-                    return values.some((value) => selectedColors.includes(value))
+                    return variant.stockQuantity > 0 && values.some((value) => selectedColors.includes(value))
                 }),
             )
         }
@@ -383,7 +399,7 @@ export function CatalogProducts({
             result = result.filter((product) =>
                 product.variants.some((variant) => {
                     const values = getVariantValuesByKeySet(variant, SIZE_KEYS)
-                    return values.some((value) => selectedSizes.includes(value))
+                    return variant.stockQuantity > 0 && values.some((value) => selectedSizes.includes(value))
                 }),
             )
         }
@@ -393,7 +409,10 @@ export function CatalogProducts({
             const maxPriceInVnd = maxPrice !== undefined ? maxPrice * 1000 : undefined
 
             result = result.filter((product) => {
-                const variantPrices = (product.variants ?? [])
+                const inStockVariants = (product.variants ?? []).filter(v => v.stockQuantity > 0)
+                if (inStockVariants.length === 0) return false
+
+                const variantPrices = inStockVariants
                     .map((variant) => Number(variant.price))
                     .filter((price) => Number.isFinite(price))
                 const salePrices = (saleItemsByProduct[product.id] ?? [])
@@ -570,54 +589,21 @@ export function CatalogProducts({
                                 <ChevronDown className="ml-1 h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-64 p-3">
-                            <div className="space-y-3">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs text-muted-foreground">Giá tối thiểu (nghìn đ)</label>
-                                    <input
-                                        type="number"
-                                        value={minPriceInput}
-                                        onChange={(e) => setMinPriceInput(e.target.value)}
-                                        className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-                                        placeholder="0"
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs text-muted-foreground">Giá tối đa (nghìn đ)</label>
-                                    <input
-                                        type="number"
-                                        value={maxPriceInput}
-                                        onChange={(e) => setMaxPriceInput(e.target.value)}
-                                        className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-                                        placeholder="∞"
-                                    />
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button onClick={applyPriceFilter} className="h-9 flex-1 rounded-md">
-                                        Áp dụng
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            setMinPriceInput("")
-                                            setMaxPriceInput("")
-                                            setMinPrice(undefined)
-                                            setMaxPrice(undefined)
-                                            setCurrentPage(1)
-                                            const params = new URLSearchParams(searchParams.toString())
-                                            params.delete("minPrice")
-                                            params.delete("maxPrice")
-                                            params.delete("page")
-                                            const query = params.toString()
-                                            router.replace(query ? `${pathname}?${query}` : pathname, {
-                                                scroll: false,
-                                            })
-                                        }}
-                                        className="h-9 rounded-md"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
+                        <DropdownMenuContent align="start" className="w-56 p-3">
+                            <div className="space-y-2">
+                                {PRICE_RANGES.map((range) => {
+                                    const isSelected = selectedPriceRange === range.value;
+                                    return (
+                                        <button
+                                            key={`price-${range.value}`}
+                                            onClick={() => handlePriceRangeChange(isSelected ? null : range.value)}
+                                            className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${isSelected ? "bg-accent text-accent-foreground" : ""}`}
+                                        >
+                                            <span>{range.label}</span>
+                                            {isSelected && <X className="h-3 w-3" />}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -696,12 +682,9 @@ export function CatalogProducts({
                             <X className="h-3 w-3" />
                         </button>
                     ))}
-                    {(minPrice !== undefined || maxPrice !== undefined) && (
                         <button
                             type="button"
                             onClick={() => {
-                                setMinPriceInput("")
-                                setMaxPriceInput("")
                                 setMinPrice(undefined)
                                 setMaxPrice(undefined)
                                 setCurrentPage(1)
@@ -714,10 +697,9 @@ export function CatalogProducts({
                             }}
                             className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-2.5 text-xs"
                         >
-                            Giá: {minPrice ?? 0} - {maxPrice ?? "∞"}
+                            Giá: {selectedPriceRangeLabel}
                             <X className="h-3 w-3" />
                         </button>
-                    )}
                     <button
                         type="button"
                         onClick={clearAllFilters}

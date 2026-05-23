@@ -32,7 +32,7 @@ export default function Home() {
         <main>
             <Hero />
             <Suspense fallback={<ProductGridSkeleton />}>
-                <ProductGrid title="Sản phẩm nổi bật" limit={6} />
+                <ProductGrid title="Sản phẩm nổi bật" limit={8} isFeatured={true} />
             </Suspense>
             <CollectionCarousel />
         </main>

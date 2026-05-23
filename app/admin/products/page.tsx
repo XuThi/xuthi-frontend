@@ -18,6 +18,7 @@ import {
 } from "@/lib/currency"
 import { getServerCurrencyPreference } from "@/lib/currency-server"
 import DeleteProductButton from "./delete-product-button"
+import FeaturedToggle from "./featured-toggle"
 
 export default async function ProductsPage() {
     await connection()
@@ -49,6 +50,7 @@ export default async function ProductsPage() {
                             <TableHead>Thương hiệu</TableHead>
                             <TableHead>Giá</TableHead>
                             <TableHead>Trạng thái</TableHead>
+                            <TableHead className="text-center">Nổi bật</TableHead>
                             <TableHead className="text-right">
                                 Hành động
                             </TableHead>
@@ -58,7 +60,7 @@ export default async function ProductsPage() {
                         {products.length === 0 ? (
                             <TableRow>
                                 <TableCell
-                                    colSpan={6}
+                                    colSpan={7}
                                     className="text-center h-24"
                                 >
                                     Chưa có sản phẩm nào.
@@ -117,6 +119,12 @@ export default async function ProductsPage() {
                                                     Ẩn
                                                 </Badge>
                                             )}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <FeaturedToggle
+                                                productId={product.id}
+                                                initialIsFeatured={product.isFeatured ?? false}
+                                            />
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">

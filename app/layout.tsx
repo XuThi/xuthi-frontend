@@ -17,6 +17,9 @@ import { getCartCookieJson, getSessionId } from "@/lib/cookies";
 import { UserNav } from "@/components/user-nav";
 import { Providers } from "@/app/providers";
 import { CartErrorBoundary } from "@/app/cart/cart-error-boundary";
+import { CURRENCY_COOKIE_NAME, parseSupportedCurrency } from "@/lib/currency";
+import { DeliveryReviewModal } from "@/components/delivery-review-modal";
+import { ChatWidget } from "@/components/chat-widget";
 
 const headingFont = Playfair_Display({
 	variable: "--font-heading",
@@ -128,9 +131,28 @@ async function CartProviderWrapper({ children }: { children: React.ReactNode }) 
 				</FooterWrapper>
 			</div>
 			<CartSidebar />
+			<DeliveryReviewModal />
+			<ChatWidget />
 		</CartProvider>
 	);
 }
+async function ProvidersWrapper({ children }: { children: React.ReactNode }) {
+	const cookieStore = await cookies();
+	const initialCurrency = parseSupportedCurrency(
+		cookieStore.get(CURRENCY_COOKIE_NAME)?.value,
+	);
+
+	return (
+		<Providers initialCurrency={initialCurrency}>
+			<CartErrorBoundary>
+				<Suspense>
+					<CartProviderWrapper>{children}</CartProviderWrapper>
+				</Suspense>
+			</CartErrorBoundary>
+		</Providers>
+	);
+}
+
 export default function RootLayout({
 	children,
 }: Readonly<{
@@ -142,13 +164,9 @@ export default function RootLayout({
                 <Suspense fallback={null}>
 					<RequestThemeScript />
 				</Suspense>
-                <Providers>
-				    <CartErrorBoundary>
-					    <Suspense>
-						    <CartProviderWrapper>{children}</CartProviderWrapper>
-					    </Suspense>
-				    </CartErrorBoundary>
-                </Providers>
+                <Suspense fallback={null}>
+				    <ProvidersWrapper>{children}</ProvidersWrapper>
+                </Suspense>
 			</body>
 		</html>
 	);

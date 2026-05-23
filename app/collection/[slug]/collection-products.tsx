@@ -20,6 +20,14 @@ const SORT_LABELS: Record<SortOption, string> = {
     newest: "Mới nhất",
 }
 
+const PRICE_RANGES = [
+    { label: "Dưới 200.000đ", value: "0-200" },
+    { label: "200.000đ - 500.000đ", value: "200-500" },
+    { label: "500.000đ - 600.000đ", value: "500-600" },
+    { label: "Trên 600.000đ", value: "600-" },
+] as const;
+
+
 type CollectionProductsProps = {
     initialProducts: Product[]
     totalCount: number
@@ -61,18 +69,17 @@ export function CollectionProducts({
         : undefined
 
     const [sortBy, setSortBy] = useState<SortOption>(initialSort)
-    const [minPriceInput, setMinPriceInput] = useState(
-        initialMinPrice?.toString() ?? "",
-    )
-    const [maxPriceInput, setMaxPriceInput] = useState(
-        initialMaxPrice?.toString() ?? "",
-    )
     const [minPrice, setMinPrice] = useState(initialMinPrice)
     const [maxPrice, setMaxPrice] = useState(initialMaxPrice)
     const [showFilters, setShowFilters] = useState(false)
     const [selectedBrands, setSelectedBrands] = useState(initialBrands)
     const [selectedAttributes, setSelectedAttributes] =
         useState<Record<string, string[]>>(initialAttributes)
+
+    const selectedPriceRange = useMemo(() => {
+        if (minPrice === undefined && maxPrice === undefined) return "all";
+        return `${minPrice ?? 0}-${maxPrice ?? ""}`;
+    }, [minPrice, maxPrice]);
 
     // Fetch sale items once
     useEffect(() => {
@@ -223,18 +230,23 @@ export function CollectionProducts({
         updateURL(sortBy, minPrice, maxPrice, selectedBrands, nextAttributes)
     }
 
-    const handleApplyPriceFilter = () => {
-        const newMin = minPriceInput ? Number(minPriceInput) : undefined
-        const newMax = maxPriceInput ? Number(maxPriceInput) : undefined
+    const handlePriceRangeChange = (value: string) => {
+        if (!value || value === "all") {
+            setMinPrice(undefined)
+            setMaxPrice(undefined)
+            updateURL(sortBy, undefined, undefined, selectedBrands, selectedAttributes)
+            return
+        }
+        const [minStr, maxStr] = value.split("-")
+        const newMin = minStr ? Number(minStr) : undefined
+        const newMax = maxStr ? Number(maxStr) : undefined
         setMinPrice(newMin)
         setMaxPrice(newMax)
-        updateURL(sortBy, newMin, newMax)
+        updateURL(sortBy, newMin, newMax, selectedBrands, selectedAttributes)
     }
 
     const handleClearFilters = () => {
         setSortBy("default")
-        setMinPriceInput("")
-        setMaxPriceInput("")
         setMinPrice(undefined)
         setMaxPrice(undefined)
         setSelectedBrands([])
@@ -271,27 +283,30 @@ export function CollectionProducts({
                         }
 
                         return product.variants.some((variant) =>
-                            values.includes(variant.attributes?.[attributeKey]),
+                            variant.stockQuantity > 0 && values.includes(variant.attributes?.[attributeKey]),
                         )
                     },
                 )
             })
         }
 
-        // Price filter
+        // Price filter (Sale-aware)
         if (minPrice !== undefined || maxPrice !== undefined) {
             result = result.filter((product) => {
-                const variants = product.variants ?? []
-                if (variants.length === 0) return true
+                const inStockVariants = product.variants?.filter(v => v.stockQuantity > 0) ?? []
+                if (inStockVariants.length === 0) return false
 
-                const prices = variants.map((v) => Number(v.price))
-                const productMinPrice = Math.min(...prices)
+                return inStockVariants.some((v) => {
+                    // Check if this variant has an active sale
+                    const variantSale = saleItems.find(s => s.variantId === v.id || (!s.variantId && s.productId === product.id));
+                    const currentPrice = variantSale ? variantSale.salePrice : Number(v.price);
 
-                if (minPrice !== undefined && productMinPrice < minPrice * 1000)
-                    return false
-                if (maxPrice !== undefined && productMinPrice > maxPrice * 1000)
-                    return false
-                return true
+                    if (minPrice !== undefined && currentPrice < minPrice * 1000)
+                        return false
+                    if (maxPrice !== undefined && currentPrice > maxPrice * 1000)
+                        return false
+                    return true
+                });
             })
         }
 
@@ -403,38 +418,22 @@ export function CollectionProducts({
             {/* Price Filter Panel */}
             {showFilters && (
                 <div className="mb-8 p-4 bg-card border border-border rounded-xl animate-in slide-in-from-top-2 duration-200 lg:hidden">
-                    <div className="flex flex-wrap items-end gap-4">
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                                Giá tối thiểu (nghìn đ)
-                            </label>
-                            <input
-                                type="number"
-                                value={minPriceInput}
-                                onChange={(e) => setMinPriceInput(e.target.value)}
-                                placeholder="0"
-                                className="w-32 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                            />
+                    <div>
+                        <h3 className="text-sm font-semibold">Khoảng giá</h3>
+                        <div className="mt-3">
+                            <select
+                                value={selectedPriceRange}
+                                onChange={(e) => handlePriceRangeChange(e.target.value)}
+                                className="w-full appearance-none bg-background border border-border rounded-lg px-4 py-2 pr-10 text-sm font-medium text-foreground cursor-pointer hover:border-primary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                            >
+                                <option value="all">Tất cả giá</option>
+                                {PRICE_RANGES.map((range) => (
+                                    <option key={`mobile-price-${range.value}`} value={range.value}>
+                                        {range.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                                Giá tối đa (nghìn đ)
-                            </label>
-                            <input
-                                type="number"
-                                value={maxPriceInput}
-                                onChange={(e) => setMaxPriceInput(e.target.value)}
-                                placeholder="∞"
-                                className="w-32 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                            />
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handleApplyPriceFilter}
-                            className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors cursor-pointer"
-                        >
-                            Áp dụng
-                        </button>
                     </div>
 
                     <div className="mt-5 space-y-5">
@@ -536,6 +535,25 @@ export function CollectionProducts({
                                 </label>
                             ))}
                         </div>
+                    </div>
+
+                    <div className="rounded-xl border p-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-semibold">Khoảng giá</h3>
+                            <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <select
+                            value={selectedPriceRange}
+                            onChange={(e) => handlePriceRangeChange(e.target.value)}
+                            className="w-full appearance-none bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            <option value="all">Tất cả giá</option>
+                            {PRICE_RANGES.map((range) => (
+                                <option key={`desktop-price-${range.value}`} value={range.value}>
+                                    {range.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {attributeFacets.length > 0 && (
@@ -814,30 +832,6 @@ export function CollectionProducts({
                             ))}
                         </select>
                     </div>
-
-                    <div className="rounded-xl border p-4 space-y-3">
-                        <h3 className="text-sm font-semibold">Khoảng giá (nghìn đ)</h3>
-                        <input
-                            type="number"
-                            value={minPriceInput}
-                            onChange={(e) => setMinPriceInput(e.target.value)}
-                            placeholder="Giá từ"
-                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                        <input
-                            type="number"
-                            value={maxPriceInput}
-                            onChange={(e) => setMaxPriceInput(e.target.value)}
-                            placeholder="Giá đến"
-                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                        <button
-                            type="button"
-                            onClick={handleApplyPriceFilter}
-                            className="w-full px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors cursor-pointer"
-                        >
-                            Áp dụng
-                        </button>
                         {hasActiveFilters && (
                             <button
                                 type="button"
@@ -847,7 +841,6 @@ export function CollectionProducts({
                                 Xóa tất cả bộ lọc
                             </button>
                         )}
-                    </div>
                 </aside>
             </div>
         </section>
