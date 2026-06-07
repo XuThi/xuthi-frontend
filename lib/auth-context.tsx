@@ -48,6 +48,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null)
 
 const API_URL = "/api/bff"
+const EXTERNAL_AUTH_API_URL =
+    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || API_URL
 
 const TOKEN_KEY = "xuthi_auth_token"
 
@@ -311,16 +313,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const loginWithGoogle = () => {
         const returnUrl = encodeURIComponent(
-            window.location.origin + "/auth/callback",
+            `${window.location.origin}/auth/callback`,
         )
-        window.location.href = `${API_URL}/api/auth/login-google?returnUrl=${returnUrl}`
+        window.location.href = `${EXTERNAL_AUTH_API_URL}/api/auth/login-google?returnUrl=${returnUrl}`
     }
 
     const loginWithFacebook = () => {
         const returnUrl = encodeURIComponent(
-            window.location.origin + "/auth/callback",
+            `${window.location.origin}/auth/callback`,
         )
-        window.location.href = `${API_URL}/api/auth/login-facebook?returnUrl=${returnUrl}`
+        window.location.href = `${EXTERNAL_AUTH_API_URL}/api/auth/login-facebook?returnUrl=${returnUrl}`
     }
 
     const logout = () => {
