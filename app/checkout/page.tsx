@@ -19,7 +19,7 @@ import {
     Bell,
 } from "lucide-react"
 import Link from "next/link"
-import { api } from "@/lib/api/client"
+import { api, type ShippingSettings } from "@/lib/api/client"
 import type { Address } from "@/lib/api/types"
 import { useCurrency } from "@/lib/currency-provider"
 
@@ -99,36 +99,146 @@ export default function CheckoutPage() {
         cityName: "",
         district: "",
         districtName: "",
+        ward: "",
+        wardName: "",
         notes: "",
         paymentMethod: "cod",
     })
 
+    const [shipping, setShipping] = useState(30000)
+    const [shippingSettings, setShippingSettings] = useState<ShippingSettings | null>(null)
+    const [isGhnUsed, setIsGhnUsed] = useState(false)
+
+    useEffect(() => {
+        api.orderGetShippingSettings()
+            .then(res => {
+                setShippingSettings(res)
+                setShipping(res.enabled ? res.flatRate : 0)
+            })
+            .catch(err => {
+                console.error("Failed to load shipping settings for checkout:", err)
+            })
+    }, [])
+
+    useEffect(() => {
+        if (!shippingSettings) return
+
+        if (!shippingSettings.enabled) {
+            setShipping(0)
+            setIsGhnUsed(false)
+            return
+        }
+
+        const calculateShipping = async () => {
+            try {
+                if (formData.paymentMethod !== "cod") {
+                    setShipping(0)
+                    setIsGhnUsed(false)
+                    return
+                }
+
+                const useThreeLevel = !!shippingSettings.useThreeLevelAddress
+                
+                if (useThreeLevel) {
+                    if (!formData.city || !formData.district || !formData.ward) {
+                        setShipping(shippingSettings.nationalFallbackRate ?? 30000)
+                        setIsGhnUsed(false)
+                        return
+                    }
+                } else {
+                    if (!formData.city || !formData.district) {
+                        setShipping(shippingSettings.nationalFallbackRate ?? 30000)
+                        setIsGhnUsed(false)
+                        return
+                    }
+                }
+
+                const methodParam = formData.paymentMethod === "cod" ? 1 : 3
+                const requestBody = {
+                    paymentMethod: methodParam,
+                    shippingCity: formData.cityName || formData.city,
+                    shippingWard: useThreeLevel 
+                        ? (formData.wardName || formData.ward) 
+                        : (formData.districtName || formData.district),
+                    shippingDistrict: useThreeLevel 
+                        ? (formData.districtName || formData.district) 
+                        : undefined,
+                    items: cart?.items.map(item => ({
+                        productId: item.productId,
+                        variantId: item.variantId,
+                        quantity: item.quantity
+                    })) || []
+                }
+
+                const res = await fetch(`${API_URL}/api/orders/calculate-shipping`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(requestBody)
+                })
+
+                if (res.ok) {
+                    const data = await res.json()
+                    setShipping(Number(data.shippingFee))
+                    setIsGhnUsed(!!data.isGhnUsed)
+                } else {
+                    throw new Error("API returned non-OK status")
+                }
+            } catch (err) {
+                console.error("Failed to calculate shipping via backend:", err)
+                setIsGhnUsed(false)
+                // Fallback to local configuration-driven rules
+                if (formData.paymentMethod !== "cod") {
+                    setShipping(0)
+                } else {
+                    const isHcm = (formData.cityName || "").toLowerCase().includes("ho chi minh") ||
+                                  (formData.cityName || "").toLowerCase().includes("hồ chí minh") ||
+                                  formData.city === "12" ||
+                                  formData.city === "79"
+                    const hcmRate = shippingSettings?.hcmFallbackRate ?? 18000
+                    const nationalRate = shippingSettings?.nationalFallbackRate ?? 30000
+                    setShipping(isHcm ? hcmRate : nationalRate)
+                }
+            }
+        }
+
+        calculateShipping()
+    }, [formData.paymentMethod, formData.city, formData.cityName, formData.district, formData.districtName, formData.ward, formData.wardName, shippingSettings, cart?.items])
+
     const formatCurrency = (amount: number) => formatFromVnd(amount)
 
-    // Fetch provinces on mount
+    const [wards, setWards] = useState<District[]>([])
+    const [loadingWards, setLoadingWards] = useState(false)
+
+    // Fetch provinces on mount (depends on shippingSettings)
     useEffect(() => {
         setMounted(true)
+        if (!shippingSettings) return
+
         const fetchProvinces = async () => {
             setLoadingProvinces(true)
             try {
-                const response = await fetch(`${LOCATION_API}/provinces`)
+                const endpoint = shippingSettings.useThreeLevelAddress
+                    ? `/api/locations/three-level/provinces`
+                    : `${LOCATION_API}/provinces`
+                const response = await fetch(endpoint)
                 if (response.ok) {
                     const result = await response.json()
                     setProvinces(result.data || [])
                 }
             } catch (err) {
                 console.error("Failed to fetch provinces:", err)
-                // Fallback: allow manual input
             } finally {
                 setLoadingProvinces(false)
             }
         }
         fetchProvinces()
-    }, [])
+    }, [shippingSettings])
 
-    // Fetch districts when province changes
+    // Fetch level 2 locations (districts in 3-level, wards in 2-level) when province changes
     useEffect(() => {
-        if (!formData.city) {
+        if (!formData.city || !shippingSettings) {
             setDistricts([])
             return
         }
@@ -138,14 +248,17 @@ export default function CheckoutPage() {
             setFormData((prev) => ({
                 ...prev,
                 district: "",
+                districtName: "",
+                ward: "",
+                wardName: "",
             }))
             try {
-                const response = await fetch(
-                    `${LOCATION_API}/wards?provinceCode=${formData.city}`,
-                )
+                const endpoint = shippingSettings.useThreeLevelAddress
+                    ? `/api/locations/three-level/districts?provinceCode=${formData.city}`
+                    : `${LOCATION_API}/wards?provinceCode=${formData.city}`
+                const response = await fetch(endpoint)
                 if (response.ok) {
                     const result = await response.json()
-                    // Reusing the existing districts state to hold wards data to minimize code changes
                     setDistricts(result.data || [])
                 }
             } catch (err) {
@@ -155,7 +268,38 @@ export default function CheckoutPage() {
             }
         }
         fetchDistricts()
-    }, [formData.city])
+    }, [formData.city, shippingSettings])
+
+    // Fetch level 3 locations (wards in 3-level) when district changes
+    useEffect(() => {
+        if (!shippingSettings?.useThreeLevelAddress || !formData.city || !formData.district) {
+            setWards([])
+            return
+        }
+        const fetchWards = async () => {
+            setLoadingWards(true)
+            setWards([])
+            setFormData((prev) => ({
+                ...prev,
+                ward: "",
+                wardName: "",
+            }))
+            try {
+                const response = await fetch(
+                    `/api/locations/three-level/wards?provinceCode=${formData.city}&districtCode=${formData.district}`
+                )
+                if (response.ok) {
+                    const result = await response.json()
+                    setWards(result.data || [])
+                }
+            } catch (err) {
+                console.error("Failed to fetch wards:", err)
+            } finally {
+                setLoadingWards(false)
+            }
+        }
+        fetchWards()
+    }, [formData.city, formData.district, shippingSettings])
 
     // Error message is now handled by the auth guards below, not via a stale useEffect
 
@@ -174,15 +318,30 @@ export default function CheckoutPage() {
 
     const applyAddress = (addr: Address) => {
         setSelectedAddressId(addr.id)
+        const isThreeLevel = !!shippingSettings?.useThreeLevelAddress
+
+        let districtName = ""
+        let wardName = addr.ward || ""
+
+        if (isThreeLevel && addr.ward?.includes(",")) {
+            const parts = addr.ward.split(",")
+            if (parts.length >= 2) {
+                districtName = parts[0].trim()
+                wardName = parts[1].trim()
+            }
+        }
+
         setFormData((prev) => ({
             ...prev,
             fullName: addr.recipientName || prev.fullName,
             phone: addr.phone || prev.phone,
             address: addr.address,
-            district: "",
-            districtName: addr.ward, // Use ward for the second tier
             city: "",
-            cityName: addr.city,
+            cityName: addr.city || "",
+            district: "",
+            districtName: isThreeLevel ? districtName : wardName,
+            ward: "",
+            wardName: isThreeLevel ? wardName : "",
         }))
     }
 
@@ -229,6 +388,31 @@ export default function CheckoutPage() {
             }))
         }
     }, [formData.districtName, formData.district, formData.city, districts])
+
+    useEffect(() => {
+        if (
+            !shippingSettings?.useThreeLevelAddress ||
+            !formData.wardName ||
+            wards.length === 0 ||
+            !formData.district
+        ) {
+            return
+        }
+
+        const wardMatch = wards.find(
+            (w) =>
+                normalizeLocationName(w.name) ===
+                normalizeLocationName(formData.wardName),
+        )
+
+        if (wardMatch && String(wardMatch.code) !== formData.ward) {
+            setFormData((prev) => ({
+                ...prev,
+                ward: String(wardMatch.code),
+                wardName: wardMatch.name_with_type,
+            }))
+        }
+    }, [formData.wardName, formData.ward, formData.district, wards, shippingSettings])
 
 
     useEffect(() => {
@@ -421,6 +605,8 @@ export default function CheckoutPage() {
             cityName: province?.name_with_type || "",
             district: "",
             districtName: "",
+            ward: "",
+            wardName: "",
         }))
     }
 
@@ -430,6 +616,17 @@ export default function CheckoutPage() {
             ...prev,
             district: districtId,
             districtName: district?.name_with_type || "",
+            ward: "",
+            wardName: "",
+        }))
+    }
+
+    const handleWardSelect = (wardId: string) => {
+        const ward = wards.find((w) => String(w.code) === wardId)
+        setFormData((prev) => ({
+            ...prev,
+            ward: wardId,
+            wardName: ward?.name_with_type || "",
         }))
     }
 
@@ -497,9 +694,17 @@ export default function CheckoutPage() {
         e.preventDefault()
         setError(null)
 
-        if (!formData.city || !formData.district) {
-            setError("Vui lòng chọn Tỉnh/Thành phố và Xã/Phường/Thị trấn.")
-            return
+        const useThreeLevel = !!shippingSettings?.useThreeLevelAddress
+        if (useThreeLevel) {
+            if (!formData.city || !formData.district || !formData.ward) {
+                setError("Vui lòng chọn đầy đủ Tỉnh/Thành phố, Quận/Huyện và Xã/Phường/Thị trấn.")
+                return
+            }
+        } else {
+            if (!formData.city || !formData.district) {
+                setError("Vui lòng chọn Tỉnh/Thành phố và Xã/Phường/Thị trấn.")
+                return
+            }
         }
 
         setIsSubmitting(true)
@@ -513,7 +718,12 @@ export default function CheckoutPage() {
                 customerPhone: formData.phone,
                 shippingAddress: formData.address,
                 shippingCity: formData.cityName || formData.city,
-                shippingWard: formData.districtName || formData.district,
+                shippingWard: useThreeLevel 
+                    ? (formData.wardName || formData.ward) 
+                    : (formData.districtName || formData.district),
+                shippingDistrict: useThreeLevel 
+                    ? (formData.districtName || formData.district) 
+                    : undefined,
                 shippingNote: formData.notes || null,
                 paymentMethod: formData.paymentMethod === "cod" ? 1 : 3,
                 items: cart.items.map((item) => ({
@@ -596,7 +806,6 @@ export default function CheckoutPage() {
         (sum, item) => sum + item.unitPrice * item.quantity,
         0,
     )
-    const shipping = 30000
     const discount = voucherApplied?.discount || 0
     const total = subtotal + shipping - discount
 
@@ -703,66 +912,143 @@ export default function CheckoutPage() {
                                     />
                                 </div>
 
-                                {/* Province/City */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Tỉnh/Thành phố *
-                                    </label>
-                                    {loadingProvinces ? (
-                                        <div className="flex items-center gap-2 py-2">
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            <span className="text-sm text-gray-500">
-                                                Đang tải...
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        <SearchableSelect
-                                            value={formData.city}
-                                            onValueChange={handleProvinceSelect}
-                                            disabled={provinces.length === 0}
-                                            placeholder="-- Chọn Tỉnh/Thành phố --"
-                                            searchPlaceholder="Tìm tỉnh/thành phố"
-                                            emptyText="Không tìm thấy tỉnh/thành phố"
-                                            options={provinces.map((province) => ({
-                                                value: String(province.code),
-                                                label: province.name_with_type,
-                                            }))}
-                                        />
-                                    )}
-                                </div>
+                                {/* Address selectors inside nested grid */}
+                                <div className={`md:col-span-2 grid grid-cols-1 ${shippingSettings?.useThreeLevelAddress ? "md:grid-cols-3" : "md:grid-cols-2"} gap-4`}>
+                                    {/* Province/City */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Tỉnh/Thành phố *
+                                        </label>
+                                        {loadingProvinces ? (
+                                            <div className="flex items-center gap-2 py-2">
+                                                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                                <span className="text-sm text-gray-500">
+                                                    Đang tải...
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <SearchableSelect
+                                                value={formData.city}
+                                                onValueChange={handleProvinceSelect}
+                                                disabled={provinces.length === 0}
+                                                placeholder="-- Chọn Tỉnh/Thành phố --"
+                                                searchPlaceholder="Tìm tỉnh/thành phố"
+                                                emptyText="Không tìm thấy tỉnh/thành phố"
+                                                options={provinces.map((province) => ({
+                                                    value: String(province.code),
+                                                    label: province.name_with_type,
+                                                }))}
+                                            />
+                                        )}
+                                    </div>
 
-                                {/* District */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Xã/Phường/Thị trấn *
-                                    </label>
-                                    {loadingDistricts ? (
-                                        <div className="flex items-center gap-2 py-2">
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            <span className="text-sm text-gray-500">
-                                                Đang tải...
-                                            </span>
-                                        </div>
+                                    {shippingSettings?.useThreeLevelAddress ? (
+                                        <>
+                                            {/* District for 3-Level */}
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Quận/Huyện *
+                                                </label>
+                                                {loadingDistricts ? (
+                                                    <div className="flex items-center gap-2 py-2">
+                                                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                                        <span className="text-sm text-gray-500">
+                                                            Đang tải...
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <SearchableSelect
+                                                        value={formData.district}
+                                                        onValueChange={handleDistrictSelect}
+                                                        disabled={
+                                                            !formData.city ||
+                                                            districts.length === 0
+                                                        }
+                                                        placeholder={
+                                                            formData.city
+                                                                ? "-- Chọn Quận/Huyện --"
+                                                                : "-- Chọn Tỉnh/Thành phố trước --"
+                                                        }
+                                                        searchPlaceholder="Tìm quận/huyện"
+                                                        emptyText="Không tìm thấy quận/huyện"
+                                                        options={districts.map((district) => ({
+                                                            value: String(district.code),
+                                                            label: district.name_with_type,
+                                                        }))}
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Ward for 3-Level */}
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Xã/Phường/Thị trấn *
+                                                </label>
+                                                {loadingWards ? (
+                                                    <div className="flex items-center gap-2 py-2">
+                                                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                                        <span className="text-sm text-gray-500">
+                                                            Đang tải...
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <SearchableSelect
+                                                        value={formData.ward}
+                                                        onValueChange={handleWardSelect}
+                                                        disabled={
+                                                            !formData.district ||
+                                                            wards.length === 0
+                                                        }
+                                                        placeholder={
+                                                            formData.district
+                                                                ? "-- Chọn Xã/Phường/Thị trấn --"
+                                                                : "-- Chọn Quận/Huyện trước --"
+                                                        }
+                                                        searchPlaceholder="Tìm xã/phường/thị trấn"
+                                                        emptyText="Không tìm thấy xã/phường/thị trấn"
+                                                        options={wards.map((ward) => ({
+                                                            value: String(ward.code),
+                                                            label: ward.name_with_type,
+                                                        }))}
+                                                    />
+                                                )}
+                                            </div>
+                                        </>
                                     ) : (
-                                        <SearchableSelect
-                                            value={formData.district}
-                                            onValueChange={handleDistrictSelect}
-                                            disabled={
-                                                !formData.city ||
-                                                districts.length === 0
-                                            }
-                                            placeholder={
-                                                formData.city
-                                                    ? "-- Chọn Xã/Phường/Thị trấn --"
-                                                    : "-- Chọn Tỉnh/Thành phố trước --"
-                                            }
-                                            searchPlaceholder="Tìm xã/phường/thị trấn"
-                                            emptyText="Không tìm thấy xã/phường/thị trấn"
-                                            options={districts.map((district) => ({
-                                                value: String(district.code),
-                                                label: district.name_with_type,
-                                            }))}
-                                        />
+                                        /* Ward/District for 2-Level */
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Xã/Phường/Thị trấn *
+                                            </label>
+                                            {loadingDistricts ? (
+                                                <div className="flex items-center gap-2 py-2">
+                                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                                    <span className="text-sm text-gray-500">
+                                                        Đang tải...
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <SearchableSelect
+                                                    value={formData.district}
+                                                    onValueChange={handleDistrictSelect}
+                                                    disabled={
+                                                        !formData.city ||
+                                                        districts.length === 0
+                                                    }
+                                                    placeholder={
+                                                        formData.city
+                                                            ? "-- Chọn Xã/Phường/Thị trấn --"
+                                                            : "-- Chọn Tỉnh/Thành phố trước --"
+                                                    }
+                                                    searchPlaceholder="Tìm xã/phường/thị trấn"
+                                                    emptyText="Không tìm thấy xã/phường/thị trấn"
+                                                    options={districts.map((district) => ({
+                                                        value: String(district.code),
+                                                        label: district.name_with_type,
+                                                    }))}
+                                                />
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 
@@ -1019,10 +1305,21 @@ export default function CheckoutPage() {
                                 <span className="text-gray-600">Tạm tính</span>
                                 <span>{formatCurrency(subtotal)}</span>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">
-                                    Phí vận chuyển
-                                </span>
+                            <div className="flex justify-between items-center text-sm">
+                                <div className="flex flex-col">
+                                    <span className="text-gray-600">
+                                        Phí vận chuyển
+                                    </span>
+                                    {formData.city && formData.district && shippingSettings?.enabled && (
+                                        <span className={`text-[10px] font-semibold mt-0.5 self-start px-1.5 py-0.5 rounded-full ${
+                                            isGhnUsed 
+                                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                                                : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                        }`}>
+                                            {isGhnUsed ? "✓ GHN - Tính phí động" : "⚠ Phí COD - Dự phòng"}
+                                        </span>
+                                    )}
+                                </div>
                                 <span>{formatCurrency(shipping)}</span>
                             </div>
                             {voucherApplied && (

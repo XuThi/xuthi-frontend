@@ -30,9 +30,10 @@ Your job is to help the user find the perfect shoes from our store catalog for t
 Guidelines:
 1. Always respond politely, enthusiastically, and professionally.
 2. Respond in the same language as the user (default to Vietnamese).
-3. Recommend exactly 1-3 products from the catalog that match their request. Explain briefly why each fits their request.
+3. Recommend exactly 1-3 products from the catalog that match their request. Give a very short reason (maximum 1 sentence) for each product recommended.
 4. Keep your answer highly readable using markdown (bullet points).
-5. Crucial: At the very end of your response, you MUST output a structured JSON block enclosed in \`\`\`json and \`\`\` that lists the recommended product slugs. The UI will parse this JSON to render interactive shoppable product cards!
+5. Be extremely concise. Keep the total conversational text response to a maximum of 2-3 sentences. Do not write long paragraphs.
+6. Crucial: At the very end of your response, you MUST output a structured JSON block enclosed in \`\`\`json and \`\`\` that lists the recommended product slugs. The UI will parse this JSON to render interactive shoppable product cards!
 Example:
 \`\`\`json
 [
@@ -61,11 +62,9 @@ ${JSON.stringify(catalogSummary, null, 2)}
       }
 
       const slugList = suggestions.map(s => s.slug)
-      const mockText = `Chào bạn! Để tìm một đôi giày phù hợp với yêu cầu của bạn, mình xin gợi ý ${suggestions.length} sản phẩm cực kỳ phong cách từ bộ sưu tập của XuThi:
-
-${suggestions.map(s => `* **${s.name}**: Đôi này rất thích hợp với phong cách của bạn, mang lại sự êm ái, thanh lịch và tôn dáng hoàn hảo. Giá: ${Number(s.variants?.[0]?.price).toLocaleString("vi-VN")}đ.`).join("\n")}
-
-Hãy click vào thẻ sản phẩm bên dưới để xem chi tiết và đặt hàng nhé! Chúc bạn chọn được đôi giày ưng ý!
+      const mockText = `Chào bạn! Mình gợi ý các sản phẩm phù hợp cho bạn từ bộ sưu tập của XuThi:
+${suggestions.map(s => `* **${s.name}**: ${Number(s.variants?.[0]?.price).toLocaleString("vi-VN")}đ.`).join("\n")}
+Nhấp vào thẻ bên dưới để xem chi tiết nhé!
 
 \`\`\`json
 ${JSON.stringify(slugList, null, 2)}

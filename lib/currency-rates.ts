@@ -51,6 +51,8 @@ export function isCurrencyRateCacheFresh(cache: CurrencyRateCache): boolean {
 export async function fetchLiveCurrencyRates(
     timeoutMs = 4500,
 ): Promise<Partial<Record<SupportedCurrency, number>> | null> {
+    return null;
+
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
@@ -81,7 +83,7 @@ export async function fetchLiveCurrencyRates(
         for (const currency of SUPPORTED_CURRENCIES) {
             if (currency === "VND") continue
 
-            const perVnd = payload.rates[currency]
+            const perVnd = payload.rates![currency]
             if (!perVnd || !Number.isFinite(perVnd) || perVnd <= 0) continue
 
             resolvedRates[currency] = Number((1 / perVnd).toFixed(2))

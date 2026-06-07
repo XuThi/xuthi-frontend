@@ -271,6 +271,56 @@ async function orderGetUnratedProducts(): Promise<UnratedProduct[]> {
     }
 }
 
+export interface ShippingSettings {
+    enabled: boolean
+    flatRate: number
+    useGhn?: boolean
+    ghnToken?: string
+    ghnShopId?: number
+    ghnFromDistrictId?: number
+    ghnFromWardCode?: string
+    ghnToHcmDistrictId?: number
+    ghnToHcmWardCode?: string
+    ghnToNationalDistrictId?: number
+    ghnToNationalWardCode?: string
+    hcmFallbackRate?: number
+    nationalFallbackRate?: number
+    packageWeightGrams?: number
+    packageLengthCm?: number
+    packageWidthCm?: number
+    packageHeightCm?: number
+    warehouseCityCode?: string
+    warehouseCityName?: string
+    warehouseWardCode?: string
+    warehouseWardName?: string
+    useThreeLevelAddress?: boolean
+    warehouseDistrictCode?: string
+    warehouseDistrictName?: string
+}
+
+async function orderGetShippingSettings(): Promise<ShippingSettings> {
+    try {
+        return await apiFetch<ShippingSettings>("/api/orders/shipping-settings")
+    } catch {
+        return { enabled: true, flatRate: 30000 }
+    }
+}
+
+async function orderUpdateShippingSettings(settings: ShippingSettings): Promise<boolean> {
+    try {
+        await apiFetch("/api/orders/shipping-settings", {
+            method: "POST",
+            body: JSON.stringify(settings),
+            headers: {
+                "Content-Type": "application/json",
+            },
+        })
+        return true
+    } catch {
+        return false
+    }
+}
+
 export interface RecommendedProduct {
     id: string
     name: string
@@ -1114,6 +1164,8 @@ export const api = {
     productToggleFeatured,
     productCanReview,
     orderGetUnratedProducts,
+    orderGetShippingSettings,
+    orderUpdateShippingSettings,
 
     // Store info (stub)
     meGet,
