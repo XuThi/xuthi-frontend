@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useMemo, useState, useTransition } from "react"
+import { toast } from "sonner"
 import { addToCart } from "@/app/cart/actions"
 import { useCart } from "@/app/cart/cart-context"
 import { QuantitySelector } from "@/app/product/[slug]/quantity-selector"
 import { TrustBadges } from "@/app/product/[slug]/trust-badges"
 import {
-    VariantSelector,
     type Variant,
+    VariantSelector,
 } from "@/app/product/[slug]/variant-selector"
 import { useCurrency } from "@/lib/currency-provider"
 import { cartT } from "@/lib/i18n/translations"
@@ -104,11 +105,18 @@ export function AddToCartButton({
 
             if (!selectedVariant) return
 
-            // Open cart sidebar instantly to improve perceived responsiveness.
-            openCart()
-
-            // Execute server action with optimistic update.
+            // Execute server action first so stale stock changes surface as errors.
             startTransition(async () => {
+                const result = await addToCart(selectedVariant.id, quantity)
+
+                if (!result.success) {
+                    toast.error(
+                        result.error ||
+                            "Không thể thêm sản phẩm vào giỏ hàng",
+                    )
+                    return
+                }
+
                 dispatch({
                     type: "ADD_ITEM",
                     item: {
@@ -132,8 +140,9 @@ export function AddToCartButton({
                     },
                 })
 
-                await addToCart(selectedVariant.id, quantity)
                 setQuantity(1)
+                toast.success("Đã thêm vào giỏ hàng")
+                openCart()
             })
         },
         [
@@ -145,7 +154,6 @@ export function AddToCartButton({
             product.name,
             quantity,
             selectedVariant,
-            startTransition,
             variantDescription,
         ],
     )

@@ -608,23 +608,19 @@ async function cartUpsert(params: {
     variantId: string
     quantity: number
 }): Promise<Cart | null> {
-    try {
-        // Add item to cart - backend creates cart if doesn't exist
-        // Response is { cartId: Guid, cart: CartDto }
-        const result = await apiFetch<{ cart: Cart }>("/api/cart/items", {
-            method: "POST",
-            body: JSON.stringify({
-                sessionId: params.sessionId,
-                productId: params.variantId,
-                variantId: params.variantId,
-                quantity: params.quantity,
-            }),
-        })
+    // Add item to cart - backend creates cart if doesn't exist.
+    // Response is { cartId: Guid, cart: CartDto }.
+    const result = await apiFetch<{ cart: Cart }>("/api/cart/items", {
+        method: "POST",
+        body: JSON.stringify({
+            sessionId: params.sessionId,
+            productId: params.variantId,
+            variantId: params.variantId,
+            quantity: params.quantity,
+        }),
+    })
 
-        return result.cart
-    } catch {
-        return null
-    }
+    return result.cart
 }
 
 async function cartRemoveItem(params: {

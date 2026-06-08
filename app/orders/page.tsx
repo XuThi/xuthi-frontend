@@ -1,24 +1,26 @@
 "use client"
 
-import { useAuth } from "@/lib/auth-context"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useState, useCallback, useRef } from "react"
 import {
-    Package,
-    ShoppingBag,
-    Clock,
     CheckCircle,
-    XCircle,
-    Truck,
-    RefreshCw,
+    Clock,
     Eye,
-    X,
     type LucideIcon,
+    Package,
+    RefreshCw,
+    ShoppingBag,
+    Truck,
+    X,
+    XCircle,
 } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { useCurrency } from "@/lib/currency-provider"
+import { useAuth } from "@/lib/auth-context"
 import { BFF_API_ENDPOINT } from "@/lib/constants"
+import { useCurrency } from "@/lib/currency-provider"
 
 const API_URL = BFF_API_ENDPOINT
 
@@ -137,6 +139,9 @@ export default function OrdersPage() {
     const [loadingOrders, setLoadingOrders] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [payosNotice, setPayosNotice] = useState<string | null>(null)
+    const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(
+        null,
+    )
     const queryHandledRef = useRef<string | null>(null)
 
     // Modal state
@@ -216,6 +221,65 @@ export default function OrdersPage() {
         }
     }, [token])
 
+    const canCancelOrder = (order: {
+        status: string
+        paymentMethod?: string
+        paymentStatus?: string
+    }) => {
+        if (order.status?.toLowerCase() !== "pending") return false
+
+        if (order.paymentMethod === "CashOnDelivery") return true
+
+        return order.paymentStatus === "Pending"
+    }
+
+    const cancelOrder = async (orderId: string) => {
+        if (!token) return
+
+        const confirmed = window.confirm(
+            "Hủy đơn hàng này? Bạn chỉ có thể hủy trước khi shop xác nhận.",
+        )
+        if (!confirmed) return
+
+        setCancellingOrderId(orderId)
+
+        try {
+            const response = await fetch(`${API_URL}/api/orders/${orderId}/cancel`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    reason: "Khách hủy trước khi shop xác nhận",
+                }),
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                toast.error(errorData.detail || "Không thể hủy đơn hàng")
+                return
+            }
+
+            toast.success("Đã hủy đơn hàng")
+            setSelectedOrder((current) =>
+                current?.id === orderId
+                    ? {
+                          ...current,
+                          status: "Cancelled",
+                          paymentStatus: "Failed",
+                      }
+                    : current,
+            )
+            await fetchOrders()
+        } catch (err) {
+            console.error("Failed to cancel order:", err)
+            toast.error("Đã xảy ra lỗi khi hủy đơn hàng")
+        } finally {
+            setCancellingOrderId(null)
+        }
+    }
+
     useEffect(() => {
         if (mounted && isAuthenticated && user?.email && token) {
             fetchOrders()
@@ -282,6 +346,7 @@ export default function OrdersPage() {
                     <h1 className="text-3xl font-bold">Đơn hàng của tôi</h1>
                 </div>
                 <button
+                    type="button"
                     onClick={fetchOrders}
                     disabled={loadingOrders}
                     className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
@@ -299,6 +364,11 @@ export default function OrdersPage() {
                 </div>
             )}
 
+            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Đơn COD có thể hủy trước khi shop xác nhận. Sau khi đơn đã xác nhận,
+                vui lòng liên hệ shop để được hỗ trợ thay đổi thông tin.
+            </div>
+
             {loadingOrders ? (
                 <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -311,6 +381,7 @@ export default function OrdersPage() {
                     <XCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
                     <p className="text-red-700">{error}</p>
                     <button
+                        type="button"
                         onClick={fetchOrders}
                         className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                     >
@@ -415,7 +486,24 @@ export default function OrdersPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-4 bg-gray-50 border-t flex justify-end">
+                                <div className="p-4 bg-gray-50 border-t flex justify-end gap-2">
+                                    {canCancelOrder(order) && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                cancelOrder(order.id)
+                                            }
+                                            disabled={
+                                                cancellingOrderId === order.id
+                                            }
+                                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                        >
+                                            {cancellingOrderId === order.id
+                                                ? "Đang hủy..."
+                                                : "Hủy đơn"}
+                                        </Button>
+                                    )}
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -443,6 +531,7 @@ export default function OrdersPage() {
                                 Chi tiết đơn hàng {selectedOrder.orderNumber}
                             </h2>
                             <button
+                                type="button"
                                 onClick={() => setSelectedOrder(null)}
                                 className="p-2 hover:bg-gray-100 rounded-full"
                             >
@@ -472,6 +561,31 @@ export default function OrdersPage() {
                                 })()}
                             </div>
 
+                            {canCancelOrder(selectedOrder) && (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                    Bạn vẫn có thể hủy đơn này trước khi shop xác nhận.
+                                    <div className="mt-3">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                cancelOrder(selectedOrder.id)
+                                            }
+                                            disabled={
+                                                cancellingOrderId ===
+                                                selectedOrder.id
+                                            }
+                                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                        >
+                                            {cancellingOrderId ===
+                                            selectedOrder.id
+                                                ? "Đang hủy..."
+                                                : "Hủy đơn hàng"}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Items */}
                             <div>
                                 <h3 className="font-semibold mb-3">Sản phẩm</h3>
@@ -482,9 +596,11 @@ export default function OrdersPage() {
                                             className="flex gap-4 p-3 bg-gray-50 rounded-lg"
                                         >
                                             {item.imageUrl && (
-                                                <img
+                                                <Image
                                                     src={item.imageUrl}
                                                     alt={item.productName}
+                                                    width={64}
+                                                    height={64}
                                                     className="w-16 h-16 object-cover rounded"
                                                 />
                                             )}

@@ -1,14 +1,35 @@
 "use server"
 
-import { commerce } from "@/lib/commerce"
 import type { Cart } from "@/lib/api/types"
+import { commerce } from "@/lib/commerce"
 import {
+    clearCartCookie,
     getCartCookieJson,
-    setCartCookie,
     getOrCreateSessionId,
     getSessionId,
-    clearCartCookie,
+    setCartCookie,
 } from "@/lib/cookies"
+
+function getActionErrorMessage(error: unknown) {
+    const message =
+        error instanceof Error ? error.message : "Không thể thêm vào giỏ hàng"
+    const jsonStart = message.indexOf("{")
+
+    if (jsonStart >= 0) {
+        try {
+            const problem = JSON.parse(message.slice(jsonStart))
+            return (
+                problem.detail ||
+                problem.title ||
+                "Không thể thêm vào giỏ hàng"
+            )
+        } catch {
+            return message
+        }
+    }
+
+    return message
+}
 
 export async function getCart(): Promise<Cart | null> {
     const cartCookie = await getCartCookieJson()
@@ -46,23 +67,35 @@ export async function addToCart(variantId: string, quantity = 1) {
     // Get or create a persistent session ID
     const sessionId = await getOrCreateSessionId()
 
-    const cart = await commerce.cartUpsert({
-        sessionId,
-        variantId,
-        quantity,
-    })
+    try {
+        const cart = await commerce.cartUpsert({
+            sessionId,
+            variantId,
+            quantity,
+        })
 
-    if (!cart) {
-        return { success: false, cart: null }
+        if (!cart) {
+            return {
+                success: false,
+                cart: null,
+                error: "Không thể thêm vào giỏ hàng",
+            }
+        }
+
+        // Save cart ID in cookie for future lookups
+        await setCartCookie({ id: cart.id })
+
+        // Fetch full cart data to sync with client
+        const fullCart = await commerce.cartGet({ cartId: cart.id })
+
+        return { success: true, cart: fullCart, error: null }
+    } catch (error) {
+        return {
+            success: false,
+            cart: null,
+            error: getActionErrorMessage(error),
+        }
     }
-
-    // Save cart ID in cookie for future lookups
-    await setCartCookie({ id: cart.id })
-
-    // Fetch full cart data to sync with client
-    const fullCart = await commerce.cartGet({ cartId: cart.id })
-
-    return { success: true, cart: fullCart }
 }
 
 export async function removeFromCart(variantId: string) {

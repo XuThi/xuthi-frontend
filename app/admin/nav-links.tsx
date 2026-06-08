@@ -1,23 +1,24 @@
 "use client"
 
-import Link from "next/link"
-import Image from "next/image"
 import {
     LayoutDashboard,
+    List,
+    LogOut,
+    type LucideIcon,
+    MessageSquare,
     Package,
-    ShoppingCart,
-    Users,
-    Ticket,
     Percent,
     Settings,
-    LogOut,
-    List,
-    Tags,
+    ShoppingCart,
     Sliders,
-    type LucideIcon,
+    Tags,
+    Ticket,
+    Users,
 } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
+import { Button } from "@/components/ui/button"
 import {
     Sidebar,
     SidebarContent,
@@ -29,9 +30,8 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
+import { useAuth } from "@/lib/auth-context"
 
 type NavItem = {
     name: string
@@ -45,6 +45,7 @@ const mainLinks: NavItem[] = [
 
 const catalogLinks: NavItem[] = [
     { name: "Sản phẩm", href: "/admin/products", icon: Package },
+    { name: "Đánh giá", href: "/admin/reviews", icon: MessageSquare },
     { name: "Danh mục", href: "/admin/categories", icon: List },
     { name: "Thương hiệu", href: "/admin/brands", icon: Tags },
     { name: "Thuộc tính", href: "/admin/variant-options", icon: Sliders },
@@ -65,7 +66,11 @@ function NavGroup({
     label,
     items,
     pathname,
-}: { label?: string; items: NavItem[]; pathname: string }) {
+}: {
+    label?: string
+    items: NavItem[]
+    pathname: string
+}) {
     return (
         <SidebarGroup>
             {label && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
@@ -115,7 +120,7 @@ export function AdminSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <Link href="/">
-                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white text-black border border-border">
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg border border-border bg-white text-black">
                                     <Image
                                         src="https://res.cloudinary.com/dxlhncwp0/image/upload/v1769941817/logo_qlelti.svg"
                                         alt="XuThi"
@@ -136,7 +141,6 @@ export function AdminSidebar() {
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
-
 
             <SidebarContent>
                 <NavGroup items={mainLinks} pathname={pathname} />
@@ -177,7 +181,6 @@ export function AdminSidebar() {
     )
 }
 
-// Keep the default export for backward compat, but the layout now uses AdminSidebar directly
 export default function AdminNavLinks() {
     return null
 }
