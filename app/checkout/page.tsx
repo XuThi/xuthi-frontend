@@ -712,7 +712,7 @@ export default function CheckoutPage() {
         try {
             // Prepare checkout request
             const checkoutData = {
-                customerId: user?.id || null,
+                customerId: customerProfileId,
                 customerName: formData.fullName,
                 customerEmail: user?.email || "",
                 customerPhone: formData.phone,
