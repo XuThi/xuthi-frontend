@@ -3,7 +3,6 @@ import { api } from "@/lib/api/client"
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ""
 
-export const runtime = "nodejs"
 export const preferredRegion = "sin1"
 
 export async function POST(req: Request) {
