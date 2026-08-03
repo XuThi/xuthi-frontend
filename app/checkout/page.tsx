@@ -23,36 +23,21 @@ import { api, type ShippingSettings } from "@/lib/api/client"
 import type { Address } from "@/lib/api/types"
 import { useCurrency } from "@/lib/currency-provider"
 
+import {
+    type Province,
+    type District,
+    normalizeLocationName,
+    fetchProvinces as fetchProvincesApi,
+    fetchDistricts as fetchDistrictsApi,
+    fetchWards as fetchWardsApi,
+    findMatchingProvince,
+    findMatchingDistrict,
+    findMatchingWard,
+} from "@/lib/checkout/location-resolver"
+
 const API_URL = "/api/bff"
 // Using internal API to serve our local JSON data
 const LOCATION_API = "/api/locations"
-
-// Types for location data
-interface Province {
-    code: string
-    name: string
-    name_with_type: string
-}
-
-interface District {
-    code: string
-    name: string
-    name_with_type: string
-}
-
-
-function normalizeLocationName(name: string) {
-    return name
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/\p{Diacritic}/gu, "")
-        .replace(
-            /^(tinh|thanh pho|tp\.?|quan|huyen|thi xa|phuong|xa|thi tran)\s+/i,
-            "",
-        )
-        .replace(/\s+/g, " ")
-        .trim()
-}
 
 export default function CheckoutPage() {
     const { user, isAuthenticated, isLoading, token } = useAuth()
@@ -219,14 +204,10 @@ export default function CheckoutPage() {
         const fetchProvinces = async () => {
             setLoadingProvinces(true)
             try {
-                const endpoint = shippingSettings.useThreeLevelAddress
-                    ? `/api/locations/three-level/provinces`
-                    : `${LOCATION_API}/provinces`
-                const response = await fetch(endpoint)
-                if (response.ok) {
-                    const result = await response.json()
-                    setProvinces(result.data || [])
-                }
+                const data = await fetchProvincesApi(
+                    !!shippingSettings.useThreeLevelAddress,
+                )
+                setProvinces(data)
             } catch (err) {
                 console.error("Failed to fetch provinces:", err)
             } finally {
@@ -253,14 +234,11 @@ export default function CheckoutPage() {
                 wardName: "",
             }))
             try {
-                const endpoint = shippingSettings.useThreeLevelAddress
-                    ? `/api/locations/three-level/districts?provinceCode=${formData.city}`
-                    : `${LOCATION_API}/wards?provinceCode=${formData.city}`
-                const response = await fetch(endpoint)
-                if (response.ok) {
-                    const result = await response.json()
-                    setDistricts(result.data || [])
-                }
+                const data = await fetchDistrictsApi(
+                    !!shippingSettings.useThreeLevelAddress,
+                    formData.city,
+                )
+                setDistricts(data)
             } catch (err) {
                 console.error("Failed to fetch districts:", err)
             } finally {
@@ -272,7 +250,11 @@ export default function CheckoutPage() {
 
     // Fetch level 3 locations (wards in 3-level) when district changes
     useEffect(() => {
-        if (!shippingSettings?.useThreeLevelAddress || !formData.city || !formData.district) {
+        if (
+            !shippingSettings?.useThreeLevelAddress ||
+            !formData.city ||
+            !formData.district
+        ) {
             setWards([])
             return
         }
@@ -285,13 +267,11 @@ export default function CheckoutPage() {
                 wardName: "",
             }))
             try {
-                const response = await fetch(
-                    `/api/locations/three-level/wards?provinceCode=${formData.city}&districtCode=${formData.district}`
+                const data = await fetchWardsApi(
+                    formData.city,
+                    formData.district,
                 )
-                if (response.ok) {
-                    const result = await response.json()
-                    setWards(result.data || [])
-                }
+                setWards(data)
             } catch (err) {
                 console.error("Failed to fetch wards:", err)
             } finally {
@@ -350,11 +330,7 @@ export default function CheckoutPage() {
             return
         }
 
-        const cityMatch = provinces.find(
-            (p) =>
-                normalizeLocationName(p.name) ===
-                normalizeLocationName(formData.cityName),
-        )
+        const cityMatch = findMatchingProvince(provinces, formData.cityName)
 
         if (cityMatch && String(cityMatch.code) !== formData.city) {
             setFormData((prev) => ({
@@ -374,11 +350,7 @@ export default function CheckoutPage() {
             return
         }
 
-        const districtMatch = districts.find(
-            (d) =>
-                normalizeLocationName(d.name) ===
-                normalizeLocationName(formData.districtName),
-        )
+        const districtMatch = findMatchingDistrict(districts, formData.districtName)
 
         if (districtMatch && String(districtMatch.code) !== formData.district) {
             setFormData((prev) => ({
@@ -399,11 +371,7 @@ export default function CheckoutPage() {
             return
         }
 
-        const wardMatch = wards.find(
-            (w) =>
-                normalizeLocationName(w.name) ===
-                normalizeLocationName(formData.wardName),
-        )
+        const wardMatch = findMatchingWard(wards, formData.wardName)
 
         if (wardMatch && String(wardMatch.code) !== formData.ward) {
             setFormData((prev) => ({
