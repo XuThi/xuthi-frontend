@@ -18,6 +18,7 @@ import type {
     SaleCampaign,
     SaleCampaignDetail,
     ActiveSaleItem,
+    StorePolicies,
 } from "./types"
 
 // Get the API base URL from environment
@@ -1071,6 +1072,32 @@ async function saleItemsGet(params: {
     }
 }
 
+async function storePoliciesGet(): Promise<StorePolicies> {
+    try {
+        return await apiFetch<StorePolicies>("/api/store/policies")
+    } catch {
+        return {
+            returnPolicy: {
+                returnWindowDays: 7,
+                returnFeesCategory: "https://schema.org/ReturnShippingFees",
+                returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+                refundType: "https://schema.org/FullRefund",
+                applicableCountry: "VN",
+                policyUrl: "https://xuthi.com/policy/returns",
+            },
+            shippingPolicy: {
+                minimumHandlingTimeDays: 1,
+                maximumHandlingTimeDays: 2,
+                minimumTransitTimeDays: 2,
+                maximumTransitTimeDays: 4,
+                standardRateVnd: 30000,
+                freeShippingThresholdVnd: 500000,
+                destinationCountry: "VN",
+            },
+        }
+    }
+}
+
 // ============ Store Info (stub - not needed for our backend) ============
 
 // This was used by commerce-kit for YNS store info
@@ -1163,8 +1190,9 @@ export const api = {
     orderGetShippingSettings,
     orderUpdateShippingSettings,
 
-    // Store info (stub)
+    // Store info
     meGet,
+    storePoliciesGet,
 }
 
 // Default export for backward compatibility

@@ -47,15 +47,16 @@ const ProductDetails = async ({
         notFound()
     }
 
-    const [product, reviewsData] = await Promise.all([
+    const [product, storePolicies] = await Promise.all([
         commerce.productGet({ idOrSlug: slug }),
-        // Fetch reviews — will be used below after product is resolved
-        (async () => null)(), // placeholder resolved after product
+        commerce.storePoliciesGet(),
     ])
 
     if (!product) {
         notFound()
     }
+
+    const reviewsData = await commerce.productGetReviews(product.id)
 
     const { data: categories } = await commerce.collectionBrowse({})
     const matchedCategory = categories.find((c) => c.id === product.categoryId)
@@ -285,8 +286,34 @@ const ProductDetails = async ({
                         "sku": product.variants[0]?.sku || "N/A",
                         "brand": {
                             "@type": "Brand",
-                            "name": "XuThi",
+                            "name": product.brandName || "XuThi",
                         },
+                        ...(product.averageRating > 0 && product.reviewCount > 0
+                            ? {
+                                  "aggregateRating": {
+                                      "@type": "AggregateRating",
+                                      "ratingValue": product.averageRating,
+                                      "reviewCount": product.reviewCount,
+                                  },
+                              }
+                            : {}),
+                        ...(reviewsData?.reviews?.length
+                            ? {
+                                  "review": reviewsData.reviews.slice(0, 5).map((r) => ({
+                                      "@type": "Review",
+                                      "author": {
+                                          "@type": "Person",
+                                          "name": r.authorName || "Anonymous",
+                                      },
+                                      "reviewRating": {
+                                          "@type": "Rating",
+                                          "ratingValue": r.rating,
+                                      },
+                                      "reviewBody": r.comment || "",
+                                      "datePublished": r.createdAt,
+                                  })),
+                              }
+                            : {}),
                         "offers": {
                             "@type": "Offer",
                             "url": `https://xuthi.vercel.app/product/${product.slug}`,
@@ -294,10 +321,47 @@ const ProductDetails = async ({
                             "price": minPrice.toString(),
                             "itemCondition": "https://schema.org/NewCondition",
                             "availability": "https://schema.org/InStock",
+                            "shippingDetails": {
+                                "@type": "OfferShippingDetails",
+                                "shippingRate": {
+                                    "@type": "MonetaryAmount",
+                                    "value": storePolicies.shippingPolicy.standardRateVnd.toString(),
+                                    "currency": "VND",
+                                },
+                                "shippingDestination": {
+                                    "@type": "DefinedRegion",
+                                    "addressCountry": storePolicies.shippingPolicy.destinationCountry,
+                                },
+                                "deliveryTime": {
+                                    "@type": "ShippingDeliveryTime",
+                                    "handlingTime": {
+                                        "@type": "QuantitativeValue",
+                                        "minValue": storePolicies.shippingPolicy.minimumHandlingTimeDays,
+                                        "maxValue": storePolicies.shippingPolicy.maximumHandlingTimeDays,
+                                        "unitCode": "DAY",
+                                    },
+                                    "transitTime": {
+                                        "@type": "QuantitativeValue",
+                                        "minValue": storePolicies.shippingPolicy.minimumTransitTimeDays,
+                                        "maxValue": storePolicies.shippingPolicy.maximumTransitTimeDays,
+                                        "unitCode": "DAY",
+                                    },
+                                },
+                            },
+                            "hasMerchantReturnPolicy": {
+                                "@type": "MerchantReturnPolicy",
+                                "applicableCountry": storePolicies.returnPolicy.applicableCountry,
+                                "returnPolicyCategory": storePolicies.returnPolicy.returnPolicyCategory,
+                                "merchantReturnDays": storePolicies.returnPolicy.returnWindowDays,
+                                "returnFees": storePolicies.returnPolicy.returnFeesCategory,
+                                "refundType": storePolicies.returnPolicy.refundType,
+                                "url": storePolicies.returnPolicy.policyUrl,
+                            },
                         },
                     }),
                 }}
             />
+
 
             {/* Reviews & Recommendations — loaded after main content */}
             <ReviewsAndRecommendations

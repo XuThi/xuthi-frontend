@@ -265,10 +265,28 @@ export interface Brand {
     logoUrl?: string
 }
 
-// ============ Variant Option Types ============
-export interface VariantOption {
-    id: string // "size", "color"
-    name: string // "Size", "Color"
-    displayType: string
-    values: string[]
+// ============ Store Policy Types ============
+export interface MerchantReturnPolicy {
+    returnWindowDays: number
+    returnFeesCategory: string
+    returnPolicyCategory: string
+    refundType: string
+    applicableCountry: string
+    policyUrl: string
 }
+
+export interface PublicShippingPolicy {
+    minimumHandlingTimeDays: number
+    maximumHandlingTimeDays: number
+    minimumTransitTimeDays: number
+    maximumTransitTimeDays: number
+    standardRateVnd: number
+    freeShippingThresholdVnd: number
+    destinationCountry: string
+}
+
+export interface StorePolicies {
+    returnPolicy: MerchantReturnPolicy
+    shippingPolicy: PublicShippingPolicy
+}
+
