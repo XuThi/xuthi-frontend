@@ -290,3 +290,11 @@ export interface StorePolicies {
     shippingPolicy: PublicShippingPolicy
 }
 
+// ============ Variant Option Types ============
+export interface VariantOption {
+    id: string
+    name: string
+    displayType: string
+    values: string[]
+}
+

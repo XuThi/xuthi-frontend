@@ -922,7 +922,7 @@ export default function ProductForm({ initialData }: ProductFormProps) {
                                                     return (
                                                         <div className="mb-2 flex flex-wrap gap-2">
                                                             {optionValues.map(
-                                                                (value) => {
+                                                                (value: string) => {
                                                                     const isSelected =
                                                                         selectedValues.includes(
                                                                             value,
